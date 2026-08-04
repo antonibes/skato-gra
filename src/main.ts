@@ -708,9 +708,26 @@ if (levelStartBtn) {
 updateEloDisplay();
 renderCampaignNodes();
 
-volumeSlider.value = String(Math.round(getVolume() * 100));
+const volumeValueLabel = document.getElementById("volume-value-label");
+
+function updateVolumeSliderUI() {
+  const pct = Math.round(getVolume() * 100);
+  volumeSlider.value = String(pct);
+  volumeSlider.style.setProperty("--volume-percent", `${pct}%`);
+  if (volumeValueLabel) {
+    volumeValueLabel.textContent = `${pct}%`;
+  }
+}
+
+updateVolumeSliderUI();
+
 volumeSlider.addEventListener("input", () => {
-  setVolume(Number(volumeSlider.value) / 100);
+  const val = Number(volumeSlider.value);
+  setVolume(val / 100);
+  volumeSlider.style.setProperty("--volume-percent", `${val}%`);
+  if (volumeValueLabel) {
+    volumeValueLabel.textContent = `${val}%`;
+  }
 });
 
 const clock = new THREE.Clock();

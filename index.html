@@ -206,9 +206,16 @@
             </div>
             
             <div class="settings-content-stack">
-              <div class="setup-block">
+              <div class="setup-block volume-control-card">
                 <span class="setup-label">Głośność</span>
-                <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="70" />
+                <div class="volume-slider-wrapper">
+                  <svg class="volume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                  </svg>
+                  <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="70" />
+                  <span id="volume-value-label" class="volume-value-label">70%</span>
+                </div>
               </div>
               
               <div class="rules-card">
@@ -261,9 +268,11 @@
         <div class="menu-logo">
           <span class="logo-word">WYBIERZ TRYB</span>
         </div>
-        <div class="menu-buttons">
+        <div class="menu-buttons-split" style="margin-bottom: 10px;">
           <button id="local-mode-button" class="btn-menu btn-menu--play" type="button">GRAJ SAM</button>
-          <button id="bot-mode-button" class="btn-menu btn-menu--online" type="button">PRZECIWKO BOTOWI</button>
+          <button id="bot-mode-button" class="btn-menu btn-menu--online" type="button">WALKA Z BOTEM</button>
+        </div>
+        <div class="menu-buttons">
           <button id="mode-back-button" class="btn-menu btn-menu--settings" type="button">WSTECZ</button>
         </div>
       </section>
@@ -326,9 +335,11 @@
         <div class="menu-logo">
           <span class="logo-word">GRAJ ONLINE</span>
         </div>
-        <div class="menu-buttons">
-          <button id="online-create-button" class="btn-menu btn-menu--play" type="button">STWÓRZ LOBBY</button>
-          <button id="online-join-button" class="btn-menu btn-menu--online" type="button">DOŁĄCZ DO LOBBY</button>
+        <div class="menu-buttons-split" style="margin-bottom: 10px;">
+          <button id="online-create-button" class="btn-menu btn-menu--play" type="button">STWÓRZ</button>
+          <button id="online-join-button" class="btn-menu btn-menu--online" type="button">DOŁĄCZ</button>
+        </div>
+        <div class="menu-buttons-split">
           <button id="online-leaderboard-button" class="btn-menu btn-menu--settings" type="button">RANKING</button>
           <button id="online-back-button" class="btn-menu btn-menu--settings" type="button">WSTECZ</button>
         </div>
