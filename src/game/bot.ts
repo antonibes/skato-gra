@@ -92,9 +92,19 @@ function makesFiveInRow(board: Cell[][], owner: PieceOwner, col: number, row: nu
   return horizontal >= 5 || vertical >= 5;
 }
 
+function countPieces(board: Cell[][]): number {
+  let count = 0;
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (board[r][c] !== null) count++;
+    }
+  }
+  return count;
+}
+
 function legalMoves(sim: SimState): Move[] {
   const moves: Move[] = [];
-  const isFirstMoveOfGame = sim.scores.green + sim.scores.blue === 0;
+  const isFirstMoveOfGame = countPieces(sim.board) === 0;
 
   for (let row = 0; row < BOARD_SIZE; row++) {
     for (let col = 0; col < BOARD_SIZE; col++) {
