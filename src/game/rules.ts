@@ -168,3 +168,38 @@ export function applyMove(state: GameState, owner: PieceOwner, col: number, row:
     state.current = owner === "green" ? "blue" : "green";
   }
 }
+
+export function getPlayerGroups(board: Cell[][], owner: PieceOwner): number[] {
+  const visited = Array.from({ length: BOARD_SIZE }, () => Array<boolean>(BOARD_SIZE).fill(false));
+  const groups: number[] = [];
+
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (board[r][c] === owner && !visited[r][c]) {
+        let size = 0;
+        const queue: BoardCoord[] = [{ col: c, row: r }];
+        visited[r][c] = true;
+
+        while (queue.length > 0) {
+          const current = queue.shift()!;
+          size++;
+
+          for (const [dc, dr] of ORTHOGONAL_NEIGHBORS) {
+            const nc = current.col + dc;
+            const nr = current.row + dr;
+
+            if (nc >= 0 && nc < BOARD_SIZE && nr >= 0 && nr < BOARD_SIZE) {
+              if (board[nr][nc] === owner && !visited[nr][nc]) {
+                visited[nr][nc] = true;
+                queue.push({ col: nc, row: nr });
+              }
+            }
+          }
+        }
+        groups.push(size);
+      }
+    }
+  }
+
+  return groups.sort((a, b) => b - a);
+}

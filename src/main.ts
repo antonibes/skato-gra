@@ -16,7 +16,7 @@ import {
   PIECE_HEIGHT,
   cellToWorld,
 } from "./three/config";
-import { createGameState, type BoardCoord } from "./game/rules";
+import { createGameState, getPlayerGroups, type BoardCoord } from "./game/rules";
 import { chooseBotMove, type Difficulty } from "./game/bot";
 import { playWin, playLose, playDraw, setVolume, getVolume } from "./audio/sound";
 
@@ -51,9 +51,13 @@ const hudGreen = document.getElementById("hud-green")!;
 const scoreBlue = document.getElementById("score-blue")!;
 const scoreGreen = document.getElementById("score-green")!;
 const resultScreen = document.getElementById("result-screen")!;
+const resultBadge = document.getElementById("result-badge")!;
 const resultTitle = document.getElementById("result-title")!;
 const resultReason = document.getElementById("result-reason")!;
-const resultScore = document.getElementById("result-score")!;
+const resultScoreGreen = document.getElementById("result-score-green")!;
+const resultScoreBlue = document.getElementById("result-score-blue")!;
+const resultCalcGreen = document.getElementById("result-calc-green")!;
+const resultCalcBlue = document.getElementById("result-calc-blue")!;
 const restartButton = document.getElementById("restart-button")!;
 
 const { renderer, scene, camera } = createSceneRig(canvas);
@@ -292,6 +296,15 @@ function playOutcomeSound() {
   }
 }
 
+function formatScoreCalc(groups: number[]): string {
+  const scoring = groups.filter((g) => g >= 5);
+  if (scoring.length === 0) {
+    return "Brak grup ≥ 5 (0 pkt)";
+  }
+  const sum = scoring.reduce((a, b) => a + b, 0);
+  return `${scoring.join(" + ")} = ${sum} pkt`;
+}
+
 function refreshHud() {
   scoreBlue.textContent = String(state.scores.blue);
   scoreGreen.textContent = String(state.scores.green);
@@ -301,7 +314,37 @@ function refreshHud() {
   if (state.over) {
     resultTitle.textContent = outcomeLabel();
     resultReason.textContent = reasonLabel();
-    resultScore.textContent = `${state.scores.green} : ${state.scores.blue}`;
+
+    // Set score values
+    resultScoreGreen.textContent = String(state.scores.green);
+    resultScoreBlue.textContent = String(state.scores.blue);
+
+    // Set group calculation breakdowns
+    const greenGroups = getPlayerGroups(state.board, "green");
+    const blueGroups = getPlayerGroups(state.board, "blue");
+    resultCalcGreen.textContent = formatScoreCalc(greenGroups);
+    resultCalcBlue.textContent = formatScoreCalc(blueGroups);
+
+    // Setup result badge
+    resultBadge.className = "result-badge";
+    if (state.winner === "draw") {
+      resultBadge.textContent = "Remis";
+      resultBadge.classList.add("result-badge--draw");
+    } else if (botConfig) {
+      const humanOwner = botConfig.owner === "green" ? "blue" : "green";
+      if (state.winner === humanOwner) {
+        resultBadge.textContent = "Wygrana!";
+        resultBadge.classList.add("result-badge--win");
+      } else {
+        resultBadge.textContent = "Przegrana";
+        resultBadge.classList.add("result-badge--lose");
+      }
+    } else {
+      const winnerName = state.winner === "green" ? "Zielony" : "Niebieski";
+      resultBadge.textContent = `Wygrywa ${winnerName}`;
+      resultBadge.classList.add("result-badge--win");
+    }
+
     if (state.winningLine) highlightWinningLine(state.winningLine);
     playOutcomeSound();
     setTimeout(() => resultScreen.classList.remove("hidden"), 1300);
@@ -489,3 +532,4 @@ function tick() {
 }
 
 tick();
+

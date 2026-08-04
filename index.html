@@ -176,10 +176,32 @@
 
       <section id="result-screen" class="result-screen hidden">
         <div class="result-card">
+          <div class="result-badge" id="result-badge">Wynik</div>
           <span class="result-title" id="result-title">Koniec gry</span>
           <span class="result-reason" id="result-reason"></span>
-          <span class="result-score" id="result-score">0 : 0</span>
-          <button id="restart-button" class="btn-menu btn-menu--play" type="button">ZAGRAJ PONOWNIE</button>
+          
+          <div class="result-score-container">
+            <div class="result-score-box result-score-box--green">
+              <span class="result-score-label">Zielony (Szmaragd)</span>
+              <span class="result-score-value" id="result-score-green">0</span>
+              <span class="result-score-calc" id="result-calc-green">Brak zaliczonych grup</span>
+            </div>
+            <div class="result-score-divider">:</div>
+            <div class="result-score-box result-score-box--blue">
+              <span class="result-score-label">Niebieski (Szafir)</span>
+              <span class="result-score-value" id="result-score-blue">0</span>
+              <span class="result-score-calc" id="result-calc-blue">Brak zaliczonych grup</span>
+            </div>
+          </div>
+          
+          <p class="result-encouragement">Świetna rozgrywka! Czy spróbujesz pobić swój wynik jeszcze raz?</p>
+          
+          <button id="restart-button" class="btn-menu btn-menu--play" type="button">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+            </svg>
+            <span>ZAGRAJ PONOWNIE</span>
+          </button>
         </div>
       </section>
     </div>
