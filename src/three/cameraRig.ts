@@ -9,6 +9,10 @@ export interface CameraPose {
 // Must cover the frame's actual outer edge (board + full frame thickness), not just the
 // playing surface, or the frame's outer rim gets clipped at the screen edge.
 const FIT_HALF_WIDTH = BOARD_HALF + BOARD_FRAME_THICKNESS + 0.25;
+// On the menu screen the board spins continuously as an idle animation. A rotating square's
+// corner sweeps out to half-width * sqrt(2) at 45°, so the menu camera needs that much extra
+// room or the frame's corner clips out of frame partway through the spin.
+const MENU_FIT_HALF_WIDTH = FIT_HALF_WIDTH * Math.SQRT2;
 const FIT_SAFETY = 1.15;
 
 // Kept comfortably away from 0° (straight down) — too close to vertical makes camera.lookAt's
@@ -21,23 +25,28 @@ const GAME_FORWARD_BIAS = 1.8;
 
 /** Distance from the board center a camera with this fov/aspect needs, so the
  *  full board fits inside the frustum. Prevents extreme zooming on wide screens. */
-function fitDistance(camera: THREE.PerspectiveCamera): number {
+function fitDistance(camera: THREE.PerspectiveCamera, halfWidth: number): number {
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
   const halfFovY = verticalFov / 2;
   const tanHalfFovY = Math.tan(halfFovY);
-  
+
   if (camera.aspect >= 1) {
     // Wide screen: fit vertically
-    return (FIT_HALF_WIDTH * FIT_SAFETY) / tanHalfFovY;
+    return (halfWidth * FIT_SAFETY) / tanHalfFovY;
   } else {
     // Narrow screen: fit horizontally
     const tanHalfFovX = tanHalfFovY * camera.aspect;
-    return (FIT_HALF_WIDTH * FIT_SAFETY) / tanHalfFovX;
+    return (halfWidth * FIT_SAFETY) / tanHalfFovX;
   }
 }
 
-function poseForElevation(camera: THREE.PerspectiveCamera, elevationDeg: number, forwardBias: number): CameraPose {
-  const distance = fitDistance(camera);
+function poseForElevation(
+  camera: THREE.PerspectiveCamera,
+  elevationDeg: number,
+  forwardBias: number,
+  halfWidth: number
+): CameraPose {
+  const distance = fitDistance(camera, halfWidth);
   const elevationRad = THREE.MathUtils.degToRad(elevationDeg);
   const y = distance * Math.cos(elevationRad);
   const z = distance * Math.sin(elevationRad) + forwardBias;
@@ -48,11 +57,11 @@ function poseForElevation(camera: THREE.PerspectiveCamera, elevationDeg: number,
 }
 
 export function menuPose(camera: THREE.PerspectiveCamera): CameraPose {
-  return poseForElevation(camera, MENU_ELEVATION_DEG, MENU_FORWARD_BIAS);
+  return poseForElevation(camera, MENU_ELEVATION_DEG, MENU_FORWARD_BIAS, MENU_FIT_HALF_WIDTH);
 }
 
 export function gamePose(camera: THREE.PerspectiveCamera): CameraPose {
-  return poseForElevation(camera, GAME_ELEVATION_DEG, GAME_FORWARD_BIAS);
+  return poseForElevation(camera, GAME_ELEVATION_DEG, GAME_FORWARD_BIAS, FIT_HALF_WIDTH);
 }
 
 function easeInOutCubic(t: number): number {

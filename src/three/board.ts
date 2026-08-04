@@ -143,27 +143,40 @@ export function createBoard(): THREE.Group {
     emissiveIntensity: 0.06,
   });
 
-  const outer = BOARD_HALF + frameThickness / 2;
-  const bars: [number, number, number, number][] = [
-    [0, outer, BOARD_SIZE + frameThickness * 2, frameThickness],
-    [0, -outer, BOARD_SIZE + frameThickness * 2, frameThickness],
-    [outer, 0, frameThickness, BOARD_SIZE],
-    [-outer, 0, frameThickness, BOARD_SIZE],
-  ];
+  // A single seamless ring (outer square with an inner square hole cut out) instead of four
+  // separate boxes butted together — abutting boxes meet at an exact floating-point boundary,
+  // which is a classic z-fighting setup (flickering/jagged seams, worst at grazing view angles).
+  const outerHalf = BOARD_HALF + frameThickness;
+  const ringShape = new THREE.Shape();
+  ringShape.moveTo(-outerHalf, -outerHalf);
+  ringShape.lineTo(outerHalf, -outerHalf);
+  ringShape.lineTo(outerHalf, outerHalf);
+  ringShape.lineTo(-outerHalf, outerHalf);
+  ringShape.lineTo(-outerHalf, -outerHalf);
 
-  for (const [x, z, w, d] of bars) {
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(w, frameHeight, d), frameMaterial);
-    bar.position.set(x, -frameHeight / 2, z);
-    bar.castShadow = true;
-    bar.receiveShadow = true;
-    group.add(bar);
+  const ringHole = new THREE.Path();
+  ringHole.moveTo(-BOARD_HALF, -BOARD_HALF);
+  ringHole.lineTo(-BOARD_HALF, BOARD_HALF);
+  ringHole.lineTo(BOARD_HALF, BOARD_HALF);
+  ringHole.lineTo(BOARD_HALF, -BOARD_HALF);
+  ringHole.lineTo(-BOARD_HALF, -BOARD_HALF);
+  ringShape.holes.push(ringHole);
 
-    const trim = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, d), trimMaterial);
-    trim.position.set(x, 0.005, z);
-    trim.castShadow = true;
-    trim.receiveShadow = true;
-    group.add(trim);
-  }
+  const frameGeometry = new THREE.ExtrudeGeometry(ringShape, { depth: frameHeight, bevelEnabled: false });
+  const frameMesh = new THREE.Mesh(frameGeometry, frameMaterial);
+  frameMesh.rotation.x = -Math.PI / 2;
+  frameMesh.position.y = -frameHeight;
+  frameMesh.castShadow = true;
+  frameMesh.receiveShadow = true;
+  group.add(frameMesh);
+
+  const trimGeometry = new THREE.ShapeGeometry(ringShape);
+  const trimMesh = new THREE.Mesh(trimGeometry, trimMaterial);
+  trimMesh.rotation.x = -Math.PI / 2;
+  trimMesh.position.y = 0.006;
+  trimMesh.castShadow = true;
+  trimMesh.receiveShadow = true;
+  group.add(trimMesh);
 
   return group;
 }

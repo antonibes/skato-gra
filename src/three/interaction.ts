@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {
   PIECE_HEIGHT,
+  PIECE_SIZE,
   DRAG_HEIGHT,
   GRAVITY,
   BOUNCE_DAMPING,
@@ -29,6 +30,16 @@ interface FallingPiece {
 // elevated camera creates a parallax offset between where you point and where the piece lands.
 const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
+// A tap doesn't need to land exactly inside a piece's own footprint — this is the effective
+// touch target radius (in world units) used as a fallback when the precise raycast misses.
+const PICKUP_TOLERANCE = PIECE_SIZE * 1.3;
+
+export interface DragCandidate {
+  col: number;
+  row: number;
+  legal: boolean;
+}
+
 export interface Interaction {
   update: (delta: number) => void;
   placeForOwner: (tray: Tray, col: number, row: number) => boolean;
@@ -41,7 +52,8 @@ export function setupInteraction(
   trays: Tray[],
   state: GameState,
   onChange: () => void,
-  getHumanOwner: () => PieceOwner | null
+  getHumanOwner: () => PieceOwner | null,
+  onDragUpdate: (candidate: DragCandidate | null) => void = () => {}
 ): Interaction {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -61,6 +73,29 @@ export function setupInteraction(
     return humanOwner === null || tray.owner === humanOwner;
   }
 
+  /** Fallback for imprecise touch: finds the nearest pickable piece to where the ray crosses
+   *  that piece's own height, within a forgiving radius — used only when the exact-geometry
+   *  raycast below misses, so slightly missing a small piece on a phone screen still works. */
+  function nearestPieceWithinTolerance(): { piece: Piece; tray: Tray } | null {
+    raycaster.setFromCamera(pointer, camera);
+    let best: { piece: Piece; tray: Tray; dist: number } | null = null;
+
+    for (const tray of trays) {
+      if (!isPlayableByTouch(tray)) continue;
+      for (const piece of tray.pieces) {
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -piece.mesh.position.y);
+        const point = new THREE.Vector3();
+        if (!raycaster.ray.intersectPlane(plane, point)) continue;
+        const dist = Math.hypot(point.x - piece.mesh.position.x, point.z - piece.mesh.position.z);
+        if (dist <= PICKUP_TOLERANCE && (!best || dist < best.dist)) {
+          best = { piece, tray, dist };
+        }
+      }
+    }
+
+    return best ? { piece: best.piece, tray: best.tray } : null;
+  }
+
   function pieceAtPointer(): { piece: Piece; tray: Tray } | null {
     raycaster.setFromCamera(pointer, camera);
     for (const tray of trays) {
@@ -73,7 +108,7 @@ export function setupInteraction(
         if (piece) return { piece, tray };
       }
     }
-    return null;
+    return nearestPieceWithinTolerance();
   }
 
   function dropInto(piece: Piece, targetY: number) {
@@ -127,6 +162,8 @@ export function setupInteraction(
     if (raycaster.ray.intersectPlane(dragPlane, point)) {
       dragging.piece.mesh.position.x = point.x;
       dragging.piece.mesh.position.z = point.z;
+      const { col, row } = worldToCell(point.x, point.z);
+      onDragUpdate({ col, row, legal: isLegalMove(state, col, row) });
     }
   }
 
@@ -134,6 +171,7 @@ export function setupInteraction(
     if (!dragging) return;
     const { piece, tray } = dragging;
     dragging = null;
+    onDragUpdate(null);
 
     const { x, z } = piece.mesh.position;
     const { col, row } = worldToCell(x, z);
