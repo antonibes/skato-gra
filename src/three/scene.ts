@@ -8,8 +8,13 @@ export interface SceneRig {
 }
 
 export function createSceneRig(canvas: HTMLCanvasElement): SceneRig {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    powerPreference: "high-performance",
+    precision: "mediump"
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -17,7 +22,7 @@ export function createSceneRig(canvas: HTMLCanvasElement): SceneRig {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(COLOR.graphite900);
-  scene.fog = new THREE.Fog(COLOR.graphite900, 24, 46);
+  scene.fog = new THREE.Fog(COLOR.graphite900, 45, 95);
 
   const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 100);
 
@@ -28,8 +33,8 @@ export function createSceneRig(canvas: HTMLCanvasElement): SceneRig {
   const keyLight = new THREE.DirectionalLight(0xffeed9, 1.45);
   keyLight.position.set(5, 12, 6);
   keyLight.castShadow = true;
-  keyLight.shadow.mapSize.width = 2048;
-  keyLight.shadow.mapSize.height = 2048;
+  keyLight.shadow.mapSize.width = 1024;
+  keyLight.shadow.mapSize.height = 1024;
   keyLight.shadow.camera.near = 0.5;
   keyLight.shadow.camera.far = 25;
   const d = 8;

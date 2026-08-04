@@ -19,8 +19,8 @@ export const GRAVITY = -16;
 export const BOUNCE_DAMPING = 0.32;
 export const MIN_BOUNCE_SPEED = 0.55;
 
-export const TABLE_WIDTH = 40;
-export const TABLE_DEPTH = 40;
+export const TABLE_WIDTH = 120;
+export const TABLE_DEPTH = 120;
 
 export const COLOR = {
   graphite900: 0x1d1f23,

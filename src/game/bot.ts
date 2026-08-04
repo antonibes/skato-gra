@@ -14,10 +14,6 @@ export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
 
 export const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard", "expert", "master"];
 
-// Iterative deepening: search depth 1, 2, 3... keeping the best move found after each
-// completed depth, until either the max depth or the time budget is hit. This keeps response
-// time bounded regardless of how tactically complex a position gets, instead of a fixed depth
-// that's fast in simple positions but can blow up in busy ones.
 const MAX_DEPTH: Record<Difficulty, number> = {
   easy: 0,
   medium: 4,
@@ -28,18 +24,18 @@ const MAX_DEPTH: Record<Difficulty, number> = {
 
 const TIME_BUDGET_MS: Record<Difficulty, number> = {
   easy: 0,
-  medium: 250,
-  hard: 500,
-  expert: 900,
-  master: 1600,
+  medium: 120,
+  hard: 280,
+  expert: 600,
+  master: 1200,
 };
 
 const CANDIDATE_CAP: Record<Difficulty, number> = {
   easy: BOARD_SIZE * BOARD_SIZE,
-  medium: 8,
-  hard: 10,
-  expert: 12,
-  master: 14,
+  medium: 12,
+  hard: 16,
+  expert: 24,
+  master: 32,
 };
 
 export interface Move {
@@ -87,8 +83,9 @@ function countDirection(board: Cell[][], owner: PieceOwner, col: number, row: nu
 }
 
 function makesFiveInRow(board: Cell[][], owner: PieceOwner, col: number, row: number): boolean {
-  const horizontal = countDirection(board, owner, col, row, 1, 0) + countDirection(board, owner, col, row, -1, 0) - 1;
-  const vertical = countDirection(board, owner, col, row, 0, 1) + countDirection(board, owner, col, row, 0, -1) - 1;
+  // Start counting from adjacent cells since (col, row) is currently empty but will be occupied by owner
+  const horizontal = countDirection(board, owner, col + 1, row, 1, 0) + countDirection(board, owner, col - 1, row, -1, 0) + 1;
+  const vertical = countDirection(board, owner, col, row + 1, 0, 1) + countDirection(board, owner, col, row - 1, 0, -1) + 1;
   return horizontal >= 5 || vertical >= 5;
 }
 
@@ -159,29 +156,48 @@ function applySim(sim: SimState, owner: PieceOwner, move: Move): SimState {
   return { board, scores, over, winner, current };
 }
 
-function neighborBias(sim: SimState, owner: PieceOwner, move: Move): number {
-  let score = 0;
-  for (const [dc, dr] of DIRECTIONS) {
-    const c = move.col + dc;
-    const r = move.row + dr;
-    if (c < 0 || c >= BOARD_SIZE || r < 0 || r >= BOARD_SIZE) continue;
-    const cell = sim.board[r][c];
-    if (cell === owner) score += 2;
-    else if (cell !== null) score -= 1;
+function evaluateCandidateMove(sim: SimState, owner: PieceOwner, move: Move): number {
+  const opponent: PieceOwner = owner === "green" ? "blue" : "green";
+  
+  // 1. Check if this move wins immediately for us
+  if (makesFiveInRow(sim.board, owner, move.col, move.row)) {
+    return 100000;
   }
+  
+  // 2. Check if this move blocks an opponent's immediate win (4-in-a-row)
+  if (makesFiveInRow(sim.board, opponent, move.col, move.row)) {
+    return 50000;
+  }
+  
+  let score = 0;
+  
+  // 3. Reward building our own runs / blocking opponent runs
+  for (const [dc, dr] of DIRECTIONS) {
+    const ourRun = countDirection(sim.board, owner, move.col + dc, move.row + dr, dc, dr) +
+                    countDirection(sim.board, owner, move.col - dc, move.row - dr, -dc, -dr);
+    const oppRun = countDirection(sim.board, opponent, move.col + dc, move.row + dr, dc, dr) +
+                    countDirection(sim.board, opponent, move.col - dc, move.row - dr, -dc, -dr);
+                    
+    score += ourRun * 12;
+    score += oppRun * 10;
+  }
+  
+  // 4. Center bias
+  const center = 3.5;
+  const dist = Math.abs(move.col - center) + Math.abs(move.row - center);
+  score += (8 - dist) * 1.5;
+  
   return score;
 }
 
 function orderedCandidates(sim: SimState, owner: PieceOwner, cap: number): Move[] {
   const moves = legalMoves(sim);
-  moves.sort((a, b) => neighborBias(sim, owner, b) - neighborBias(sim, owner, a));
+  moves.sort((a, b) => evaluateCandidateMove(sim, owner, b) - evaluateCandidateMove(sim, owner, a));
   return moves.slice(0, cap);
 }
 
 const TERMINAL_WIN_VALUE = 1_000_000;
 
-/** Longest run of `owner`'s pieces anywhere on the board (horizontal or vertical) — a proxy for
- *  how close that side is to completing a 5-in-a-row, which raw piece count doesn't capture. */
 function longestRun(board: Cell[][], owner: PieceOwner): number {
   let best = 0;
   for (let row = 0; row < BOARD_SIZE; row++) {
@@ -212,6 +228,10 @@ function longestRun(board: Cell[][], owner: PieceOwner): number {
   return best;
 }
 
+// Flat pre-allocated typed arrays to eliminate garbage collection frame stutter/lags
+const visited = new Uint8Array(64);
+const queue = new Uint8Array(64);
+
 function evaluate(sim: SimState, botOwner: PieceOwner, opponent: PieceOwner): number {
   if (sim.over) {
     if (sim.winner === botOwner) return TERMINAL_WIN_VALUE;
@@ -219,31 +239,39 @@ function evaluate(sim: SimState, botOwner: PieceOwner, opponent: PieceOwner): nu
     return 0;
   }
 
-  // Actual score difference under the new rule (groups >= 5)
   const actualScoreDiff = sim.scores[botOwner] - sim.scores[opponent];
   
-  // Potential reward for building groups:
   let botGroupPotential = 0;
   let opponentGroupPotential = 0;
   
-  const visited = Array.from({ length: BOARD_SIZE }, () => Array<boolean>(BOARD_SIZE).fill(false));
+  visited.fill(0);
+
   for (let r = 0; r < BOARD_SIZE; r++) {
     for (let c = 0; c < BOARD_SIZE; c++) {
       const cell = sim.board[r][c];
-      if (cell !== null && !visited[r][c]) {
+      const idx = c + r * BOARD_SIZE;
+      if (cell !== null && visited[idx] === 0) {
         let size = 0;
-        const queue: [number, number][] = [[r, c]];
-        visited[r][c] = true;
-        while (queue.length > 0) {
-          const [currR, currC] = queue.shift()!;
+        
+        let qHead = 0;
+        let qTail = 0;
+        queue[qTail++] = idx;
+        visited[idx] = 1;
+        
+        while (qHead < qTail) {
+          const currIdx = queue[qHead++];
+          const currR = Math.floor(currIdx / BOARD_SIZE);
+          const currC = currIdx % BOARD_SIZE;
           size++;
+          
           for (const [dc, dr] of DIRECTIONS) {
             const nr = currR + dr;
             const nc = currC + dc;
             if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
-              if (sim.board[nr][nc] === cell && !visited[nr][nc]) {
-                visited[nr][nc] = true;
-                queue.push([nr, nc]);
+              const nIdx = nc + nr * BOARD_SIZE;
+              if (sim.board[nr][nc] === cell && visited[nIdx] === 0) {
+                visited[nIdx] = 1;
+                queue[qTail++] = nIdx;
               }
             }
           }
@@ -253,8 +281,8 @@ function evaluate(sim: SimState, botOwner: PieceOwner, opponent: PieceOwner): nu
         if (size === 1) potential = 0.2;
         else if (size === 2) potential = 1.0;
         else if (size === 3) potential = 3.0;
-        else if (size === 4) potential = 12.0; // extremely close to scoring!
-        else potential = size * 5.0; // groups >= 5 are extremely valuable
+        else if (size === 4) potential = 12.0;
+        else potential = size * 5.0;
         
         if (cell === botOwner) {
           botGroupPotential += potential;
@@ -265,21 +293,22 @@ function evaluate(sim: SimState, botOwner: PieceOwner, opponent: PieceOwner): nu
     }
   }
 
-  const center = (BOARD_SIZE - 1) / 2;
+  const center = 3.5;
   let positional = 0;
-  for (let row = 0; row < BOARD_SIZE; row++) {
-    for (let col = 0; col < BOARD_SIZE; col++) {
-      const cell = sim.board[row][col];
-      if (!cell) continue;
-      const distanceFromCenter = Math.abs(row - center) + Math.abs(col - center);
-      const bonus = (BOARD_SIZE - distanceFromCenter) * 0.15;
-      positional += cell === botOwner ? bonus : -bonus;
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const cell = sim.board[r][c];
+      if (cell !== null) {
+        const dist = Math.abs(r - center) + Math.abs(c - center);
+        const bonus = (8 - dist) * 0.15;
+        positional += cell === botOwner ? bonus : -bonus;
+      }
     }
   }
 
   const runDiff = longestRun(sim.board, botOwner) - longestRun(sim.board, opponent);
   
-  return actualScoreDiff * 120 + (botGroupPotential - opponentGroupPotential) * 12 + positional + runDiff * 45;
+  return actualScoreDiff * 150 + (botGroupPotential - opponentGroupPotential) * 15 + positional + runDiff * 60;
 }
 
 class SearchTimeout extends Error {}
