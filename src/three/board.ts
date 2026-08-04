@@ -125,6 +125,7 @@ export function createBoard(): THREE.Group {
   );
   surface.rotation.x = -Math.PI / 2;
   surface.name = "board-surface";
+  surface.receiveShadow = true;
   group.add(surface);
 
   const frameThickness = BOARD_FRAME_THICKNESS;
@@ -153,10 +154,14 @@ export function createBoard(): THREE.Group {
   for (const [x, z, w, d] of bars) {
     const bar = new THREE.Mesh(new THREE.BoxGeometry(w, frameHeight, d), frameMaterial);
     bar.position.set(x, -frameHeight / 2, z);
+    bar.castShadow = true;
+    bar.receiveShadow = true;
     group.add(bar);
 
     const trim = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, d), trimMaterial);
     trim.position.set(x, 0.005, z);
+    trim.castShadow = true;
+    trim.receiveShadow = true;
     group.add(trim);
   }
 

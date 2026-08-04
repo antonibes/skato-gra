@@ -9,15 +9,56 @@ import {
   COLOR,
 } from "./config";
 
-const pieceGeometry = new THREE.BoxGeometry(PIECE_SIZE, PIECE_HEIGHT, PIECE_SIZE);
+function createRoundedBoxGeometry(width: number, height: number, depth: number, radius: number, steps: number): THREE.BufferGeometry {
+  const shape = new THREE.Shape();
+  const w = width / 2 - radius;
+  const d = depth / 2 - radius;
+  const r = radius;
+
+  shape.moveTo(-w, -d - r);
+  shape.lineTo(w, -d - r);
+  shape.quadraticCurveTo(w + r, -d - r, w + r, -d);
+  shape.lineTo(w + r, d);
+  shape.quadraticCurveTo(w + r, d + r, w, d + r);
+  shape.lineTo(-w, d + r);
+  shape.quadraticCurveTo(-w - r, d + r, -w - r, d);
+  shape.lineTo(-w - r, -d);
+  shape.quadraticCurveTo(-w - r, -d - r, -w, -d - r);
+
+  const extrudeSettings = {
+    steps: 1,
+    depth: height - radius * 2,
+    bevelEnabled: true,
+    bevelThickness: radius,
+    bevelSize: radius,
+    bevelOffset: 0,
+    bevelSegments: steps,
+  };
+
+  const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  geom.center();
+  geom.rotateX(Math.PI / 2);
+  return geom;
+}
+
+const pieceGeometry = createRoundedBoxGeometry(PIECE_SIZE, PIECE_HEIGHT, PIECE_SIZE, 0.035, 4);
 
 const materialCache = new Map<number, THREE.MeshStandardMaterial>();
 function materialFor(color: number): THREE.MeshStandardMaterial {
-  let material = materialCache.get(color);
-  if (!material) {
-    material = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.1 });
-    materialCache.set(color, material);
-  }
+  const cached = materialCache.get(color);
+  if (cached) return cached;
+
+  const material = new THREE.MeshPhysicalMaterial({
+    color,
+    roughness: 0.12,
+    metalness: 0.05,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.04,
+    transmission: 0.15,
+    thickness: 0.3,
+    ior: 1.52,
+  });
+  materialCache.set(color, material);
   return material;
 }
 
@@ -32,20 +73,30 @@ export interface Piece {
 export function createPiece(owner: PieceOwner, color: number): Piece {
   const mesh = new THREE.Mesh(pieceGeometry, materialFor(color));
   mesh.userData.owner = owner;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   return { mesh, owner, placed: false };
 }
 
 /** A piece with its own (non-shared) transparent material, so it can fade out independently —
  *  used for the decorative menu-background board, which is cleared away when a real game starts. */
 export function createDemoPiece(color: number): THREE.Mesh {
-  const material = new THREE.MeshStandardMaterial({
+  const material = new THREE.MeshPhysicalMaterial({
     color,
-    roughness: 0.4,
-    metalness: 0.1,
+    roughness: 0.12,
+    metalness: 0.05,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.04,
+    transmission: 0.15,
+    thickness: 0.3,
+    ior: 1.52,
     transparent: true,
     opacity: 1,
   });
-  return new THREE.Mesh(pieceGeometry, material);
+  const mesh = new THREE.Mesh(pieceGeometry, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
 }
 
 function createWeaveTexture(): THREE.CanvasTexture {
@@ -114,11 +165,15 @@ export function createTrayMesh(): THREE.Group {
   );
   wall.position.y = TRAY_FLOOR_Y + wallH / 2;
   wall.name = "tray-basket";
+  wall.castShadow = true;
+  wall.receiveShadow = true;
   group.add(wall);
 
   const rim = new THREE.Mesh(new THREE.TorusGeometry(TRAY_RADIUS, wallH * 0.13, 10, 32), basketRimMaterial);
   rim.rotation.x = Math.PI / 2;
   rim.position.y = TRAY_FLOOR_Y + wallH;
+  rim.castShadow = true;
+  rim.receiveShadow = true;
   group.add(rim);
 
   const band = new THREE.Mesh(
@@ -127,11 +182,14 @@ export function createTrayMesh(): THREE.Group {
   );
   band.rotation.x = Math.PI / 2;
   band.position.y = TRAY_FLOOR_Y + wallH * 0.22;
+  band.castShadow = true;
+  band.receiveShadow = true;
   group.add(band);
 
   const floor = new THREE.Mesh(new THREE.CircleGeometry(bottomRadius, 28), basketFloorMaterial);
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = TRAY_FLOOR_Y + 0.004;
+  floor.receiveShadow = true;
   group.add(floor);
 
   const shadow = new THREE.Mesh(

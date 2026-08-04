@@ -58,6 +58,7 @@ export function createTable(): THREE.Group {
   );
   top.rotation.x = -Math.PI / 2;
   top.position.y = -0.42;
+  top.receiveShadow = true;
   group.add(top);
 
   const edge = new THREE.Mesh(
@@ -65,6 +66,8 @@ export function createTable(): THREE.Group {
     new THREE.MeshStandardMaterial({ color: COLOR.woodDark, roughness: 0.7 })
   );
   edge.position.y = -0.58;
+  edge.receiveShadow = true;
+  edge.castShadow = true;
   group.add(edge);
 
   return group;

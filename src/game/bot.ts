@@ -1,6 +1,6 @@
 import { BOARD_SIZE } from "../three/config";
 import type { PieceOwner } from "../three/pieces";
-import type { Cell, GameState } from "./rules";
+import { type Cell, type GameState, calculatePlayerScore } from "./rules";
 
 export type Difficulty = "easy" | "medium" | "hard" | "expert" | "master";
 
@@ -117,8 +117,19 @@ function legalMoves(sim: SimState): Move[] {
 function applySim(sim: SimState, owner: PieceOwner, move: Move): SimState {
   const board = sim.board.map((row) => row.slice());
   board[move.row][move.col] = owner;
-  const scores = { ...sim.scores, [owner]: sim.scores[owner] + 1 };
-  const full = scores.green + scores.blue === BOARD_SIZE * BOARD_SIZE;
+  
+  const scores = {
+    green: calculatePlayerScore(board, "green"),
+    blue: calculatePlayerScore(board, "blue")
+  };
+
+  let totalPieces = 0;
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (board[r][c] !== null) totalPieces++;
+    }
+  }
+  const full = totalPieces === BOARD_SIZE * BOARD_SIZE;
   const madeFive = makesFiveInRow(board, owner, move.col, move.row);
 
   let over = sim.over;
@@ -198,7 +209,52 @@ function evaluate(sim: SimState, botOwner: PieceOwner, opponent: PieceOwner): nu
     return 0;
   }
 
-  const diff = sim.scores[botOwner] - sim.scores[opponent];
+  // Actual score difference under the new rule (groups >= 5)
+  const actualScoreDiff = sim.scores[botOwner] - sim.scores[opponent];
+  
+  // Potential reward for building groups:
+  let botGroupPotential = 0;
+  let opponentGroupPotential = 0;
+  
+  const visited = Array.from({ length: BOARD_SIZE }, () => Array<boolean>(BOARD_SIZE).fill(false));
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const cell = sim.board[r][c];
+      if (cell !== null && !visited[r][c]) {
+        let size = 0;
+        const queue: [number, number][] = [[r, c]];
+        visited[r][c] = true;
+        while (queue.length > 0) {
+          const [currR, currC] = queue.shift()!;
+          size++;
+          for (const [dc, dr] of DIRECTIONS) {
+            const nr = currR + dr;
+            const nc = currC + dc;
+            if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+              if (sim.board[nr][nc] === cell && !visited[nr][nc]) {
+                visited[nr][nc] = true;
+                queue.push([nr, nc]);
+              }
+            }
+          }
+        }
+        
+        let potential = 0;
+        if (size === 1) potential = 0.2;
+        else if (size === 2) potential = 1.0;
+        else if (size === 3) potential = 3.0;
+        else if (size === 4) potential = 12.0; // extremely close to scoring!
+        else potential = size * 5.0; // groups >= 5 are extremely valuable
+        
+        if (cell === botOwner) {
+          botGroupPotential += potential;
+        } else {
+          opponentGroupPotential += potential;
+        }
+      }
+    }
+  }
+
   const center = (BOARD_SIZE - 1) / 2;
   let positional = 0;
   for (let row = 0; row < BOARD_SIZE; row++) {
@@ -212,7 +268,8 @@ function evaluate(sim: SimState, botOwner: PieceOwner, opponent: PieceOwner): nu
   }
 
   const runDiff = longestRun(sim.board, botOwner) - longestRun(sim.board, opponent);
-  return diff * 10 + positional + runDiff * 15;
+  
+  return actualScoreDiff * 120 + (botGroupPotential - opponentGroupPotential) * 12 + positional + runDiff * 45;
 }
 
 class SearchTimeout extends Error {}

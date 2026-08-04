@@ -10,6 +10,10 @@ export interface SceneRig {
 export function createSceneRig(canvas: HTMLCanvasElement): SceneRig {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(COLOR.graphite900);
@@ -17,10 +21,30 @@ export function createSceneRig(canvas: HTMLCanvasElement): SceneRig {
 
   const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 100);
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.65);
-  const key = new THREE.DirectionalLight(0xfff2d9, 0.9);
-  key.position.set(0, 8, 4);
-  scene.add(ambient, key);
+  // Soft ambient light for general base visibility
+  const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+
+  // Warm, powerful key light casting high-quality soft shadows
+  const keyLight = new THREE.DirectionalLight(0xffeed9, 1.45);
+  keyLight.position.set(5, 12, 6);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.width = 2048;
+  keyLight.shadow.mapSize.height = 2048;
+  keyLight.shadow.camera.near = 0.5;
+  keyLight.shadow.camera.far = 25;
+  const d = 8;
+  keyLight.shadow.camera.left = -d;
+  keyLight.shadow.camera.right = d;
+  keyLight.shadow.camera.top = d;
+  keyLight.shadow.camera.bottom = -d;
+  keyLight.shadow.bias = -0.0004;
+  keyLight.shadow.normalBias = 0.02;
+
+  // Cool fill light to create depth and contrast
+  const fillLight = new THREE.DirectionalLight(0xdbe9ff, 0.45);
+  fillLight.position.set(-6, 8, -4);
+
+  scene.add(ambient, keyLight, fillLight);
 
   function resize() {
     const width = window.innerWidth;

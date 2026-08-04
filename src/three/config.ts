@@ -29,8 +29,8 @@ export const COLOR = {
   wood: 0x6b4a30,
   woodLight: 0x8a6440,
   gold: 0xc9a24b,
-  green: 0x3f8f5c,
-  blue: 0x3b6fb0,
+  green: 0x0f854b,
+  blue: 0x184ea1,
   tableOak: 0xb98a56,
   basket: 0x8a5a34,
 } as const;
