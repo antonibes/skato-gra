@@ -17,58 +17,246 @@
     <div id="app">
       <canvas id="scene"></canvas>
 
+      <!-- Main Lobby Screen containing the Bottom Navigation and Active Tabs -->
       <section id="menu-screen" class="menu-screen">
-        <div class="menu-logo">
-          <div class="logo-3d-board">
-            <div class="board-3d-face">
-              <div class="grid-3d-cell">
-                <div class="piece-3d green"></div>
+        <div class="lobby-content">
+          
+          <!-- TAB 1: PLAY (ZAGRAJ) -->
+          <div id="tab-play" class="lobby-tab-view active">
+            <div class="menu-logo">
+              <div class="logo-3d-board">
+                <div class="board-3d-face">
+                  <div class="grid-3d-cell"><div class="piece-3d green"></div></div>
+                  <div class="grid-3d-cell"></div>
+                  <div class="grid-3d-cell"><div class="piece-3d blue"></div></div>
+                  <div class="grid-3d-cell"></div>
+                  <div class="grid-3d-cell"><div class="piece-3d green"></div></div>
+                  <div class="grid-3d-cell"></div>
+                  <div class="grid-3d-cell"><div class="piece-3d blue"></div></div>
+                  <div class="grid-3d-cell"></div>
+                  <div class="grid-3d-cell"><div class="piece-3d green"></div></div>
+                </div>
               </div>
-              <div class="grid-3d-cell"></div>
-              <div class="grid-3d-cell">
-                <div class="piece-3d blue"></div>
+              <span class="logo-word">SKATO</span>
+              <span class="logo-tagline">Logika. Strategia. Elegancja.</span>
+            </div>
+            
+            <div class="menu-buttons">
+              <!-- Reusing play-button and play-online-button to keep TS bindings intact -->
+              <button id="play-button" class="btn-menu btn-menu--play" type="button">
+                <svg class="btn-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor" /></svg>
+                <span>GRAJ</span>
+              </button>
+              <button id="play-online-button" class="btn-menu btn-menu--online" type="button">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <circle cx="12" cy="12" r="9" />
+                  <ellipse cx="12" cy="12" rx="4" ry="9" />
+                  <path d="M3 12h18" />
+                </svg>
+                <span>GRAJ ONLINE</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- TAB 2: CAMPAIGN (KARIERA) -->
+          <div id="tab-campaign" class="lobby-tab-view">
+            <div class="tab-header">
+              <span class="tab-title">Kariera</span>
+              <span class="tab-subtitle">Zdobądź korony w trzech krainach</span>
+            </div>
+            
+            <div class="campaign-path-container">
+              <div class="campaign-path-svg-bg">
+                <svg width="100%" height="100%" viewBox="0 0 100 680" preserveAspectRatio="none">
+                  <path d="M 50,30 Q 85,115 50,200 T 50,380 T 50,540 T 50,655" fill="none" stroke="rgba(201, 162, 75, 0.2)" stroke-width="3.5" stroke-dasharray="8 6" />
+                </svg>
               </div>
-              <div class="grid-3d-cell"></div>
-              <div class="grid-3d-cell">
-                <div class="piece-3d green"></div>
+              
+              <!-- Zone 1: Wioska (Woodland Village) -->
+              <div class="campaign-zone">
+                <span class="zone-badge">Kraina Drewna (Wioska)</span>
+                <div class="level-nodes">
+                  <button class="level-node" data-level="1" type="button">
+                    <span class="level-num">1</span>
+                    <span class="level-stars" id="stars-level-1">☆☆☆</span>
+                  </button>
+                  <button class="level-node" data-level="2" type="button">
+                    <span class="level-num">2</span>
+                    <span class="level-stars" id="stars-level-2">☆☆☆</span>
+                  </button>
+                  <button class="level-node" data-level="3" type="button">
+                    <span class="level-num">3</span>
+                    <span class="level-stars" id="stars-level-3">☆☆☆</span>
+                  </button>
+                </div>
               </div>
-              <div class="grid-3d-cell"></div>
-              <div class="grid-3d-cell">
-                <div class="piece-3d blue"></div>
+
+              <!-- Zone 2: Zamek (Stone Castle) -->
+              <div class="campaign-zone">
+                <span class="zone-badge">Kraina Kamienia (Zamek)</span>
+                <div class="level-nodes">
+                  <button class="level-node locked" data-level="4" type="button">
+                    <span class="level-num">🔒</span>
+                    <span class="level-stars" id="stars-level-4"></span>
+                  </button>
+                  <button class="level-node locked" data-level="5" type="button">
+                    <span class="level-num">🔒</span>
+                    <span class="level-stars" id="stars-level-5"></span>
+                  </button>
+                  <button class="level-node locked" data-level="6" type="button">
+                    <span class="level-num">🔒</span>
+                    <span class="level-stars" id="stars-level-6"></span>
+                  </button>
+                </div>
               </div>
-              <div class="grid-3d-cell"></div>
-              <div class="grid-3d-cell">
-                <div class="piece-3d green"></div>
+
+              <!-- Zone 3: Miasto (Gold City) -->
+              <div class="campaign-zone">
+                <span class="zone-badge">Złote Miasto (Metropolia)</span>
+                <div class="level-nodes">
+                  <button class="level-node locked" data-level="7" type="button">
+                    <span class="level-num">🔒</span>
+                    <span class="level-stars" id="stars-level-7"></span>
+                  </button>
+                  <button class="level-node locked" data-level="8" type="button">
+                    <span class="level-num">🔒</span>
+                    <span class="level-stars" id="stars-level-8"></span>
+                  </button>
+                  <button class="level-node locked" data-level="9" type="button">
+                    <span class="level-num">🔒</span>
+                    <span class="level-stars" id="stars-level-9"></span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-          <span class="logo-word">SKATO</span>
-          <span class="logo-tagline">Logika. Strategia. Elegancja.</span>
+
+          <!-- TAB 3: LEADERBOARD (RANKING) -->
+          <div id="tab-leaderboard" class="lobby-tab-view">
+            <div class="tab-header">
+              <span class="tab-title">Ranking</span>
+              <span class="tab-subtitle">Najlepsi gracze w tym sezonie</span>
+            </div>
+            
+            <div class="leaderboard-list">
+              <div class="leaderboard-item top-1">
+                <span class="rank-badge">🥇</span>
+                <span class="rank-avatar bg-gold">MD</span>
+                <div class="rank-info">
+                  <span class="rank-name">Mistrz Drewna</span>
+                  <span class="rank-title">Wielki Arcymistrz</span>
+                </div>
+                <span class="rank-score">1840 ELO</span>
+              </div>
+              <div class="leaderboard-item top-2">
+                <span class="rank-badge">🥈</span>
+                <span class="rank-avatar bg-silver">SA</span>
+                <div class="rank-info">
+                  <span class="rank-name">Szmaragdowy As</span>
+                  <span class="rank-title">Mistrz III</span>
+                </div>
+                <span class="rank-score">1690 ELO</span>
+              </div>
+              <div class="leaderboard-item top-3">
+                <span class="rank-badge">🥉</span>
+                <span class="rank-avatar bg-bronze">SF</span>
+                <div class="rank-info">
+                  <span class="rank-name">Szafirowy Filar</span>
+                  <span class="rank-title">Mistrz I</span>
+                </div>
+                <span class="rank-score">1520 ELO</span>
+              </div>
+              <div class="leaderboard-item">
+                <span class="rank-num">4</span>
+                <span class="rank-avatar">KB</span>
+                <div class="rank-info">
+                  <span class="rank-name">Kamil_Skato</span>
+                  <span class="rank-title">Diament II</span>
+                </div>
+                <span class="rank-score">1380 ELO</span>
+              </div>
+              <div class="leaderboard-item">
+                <span class="rank-num">5</span>
+                <span class="rank-avatar">PL</span>
+                <div class="rank-info">
+                  <span class="rank-name">PlacerPro</span>
+                  <span class="rank-title">Diament I</span>
+                </div>
+                <span class="rank-score">1290 ELO</span>
+              </div>
+              
+              <!-- Fixed bottom card for user's ELO -->
+              <div class="leaderboard-item user-item">
+                <span class="rank-num" id="user-rank-val">98</span>
+                <span class="rank-avatar user-avatar">TY</span>
+                <div class="rank-info">
+                  <span class="rank-name">Ty (Gracz)</span>
+                  <span class="rank-title" id="user-tier-val">Nowicjusz</span>
+                </div>
+                <span class="rank-score" id="user-elo-val">1000 ELO</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: SETTINGS (USTAW) -->
+          <div id="tab-settings" class="lobby-tab-view">
+            <div class="tab-header">
+              <span class="tab-title">Opcje & Zasady</span>
+              <span class="tab-subtitle">Ustaw głośność lub przeczytaj reguły</span>
+            </div>
+            
+            <div class="settings-content-stack">
+              <div class="setup-block">
+                <span class="setup-label">Głośność</span>
+                <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="70" />
+              </div>
+              
+              <div class="rules-card">
+                <span class="rules-title">ZASADY GRY</span>
+                <p class="rules-text">
+                  1. Gra rozgrywana jest na planszy 9x9.<br>
+                  2. Gracze stawiają na zmianę swoje pionki.<br>
+                  3. **Zasada przylegania:** Nowy pionek musi stykać się bokiem (nie na ukos) z dowolnym już leżącym pionkiem (oprócz pierwszego ruchu).<br>
+                  4. **Punktacja:** Punkty otrzymuje się za połączone grupy własnych pionków o rozmiarze **co najmniej 5**. Sumuje się rozmiary wszystkich takich grup.<br>
+                  5. **Wygrana natychmiastowa:** Ułożenie 5 pionków w linii (poziomo lub pionowo) natychmiast wygrywa grę!<br>
+                  6. Gra kończy się, gdy plansza zostanie całkowicie zapełniona. Wygrywa gracz z większą liczbą punktów.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="menu-buttons">
-          <button id="play-button" class="btn-menu btn-menu--play" type="button">
-            <svg class="btn-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor" /></svg>
-            <span>GRAJ</span>
-          </button>
-          <button id="play-online-button" class="btn-menu btn-menu--online" type="button">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <circle cx="12" cy="12" r="9" />
-              <ellipse cx="12" cy="12" rx="4" ry="9" />
-              <path d="M3 12h18" />
+
+        <!-- Persistent Bottom Navigation Bar -->
+        <nav class="bottom-nav">
+          <button class="nav-item active" data-tab="play" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
             </svg>
-            <span>GRAJ ONLINE</span>
+            <span class="nav-label">ZAGRAJ</span>
           </button>
-          <button id="settings-button" class="btn-menu btn-menu--settings" type="button">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-              <line x1="4" y1="7" x2="20" y2="7" /><circle cx="9" cy="7" r="2" fill="currentColor" stroke="none" />
-              <line x1="4" y1="14" x2="20" y2="14" /><circle cx="16" cy="14" r="2" fill="currentColor" stroke="none" />
-              <line x1="4" y1="21" x2="20" y2="21" /><circle cx="11" cy="21" r="2" fill="currentColor" stroke="none" />
+          <button class="nav-item" data-tab="campaign" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
-            <span>USTAWIENIA</span>
+            <span class="nav-label">KARIERA</span>
           </button>
-        </div>
+          <button class="nav-item" data-tab="leaderboard" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 20V10M12 20V4M6 20v-6"/>
+            </svg>
+            <span class="nav-label">RANKING</span>
+          </button>
+          <button class="nav-item" data-tab="settings" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            <span class="nav-label">USTAW</span>
+          </button>
+        </nav>
       </section>
 
+      <!-- Mode selection screen (overlay modal) -->
       <section id="mode-screen" class="menu-screen hidden">
         <div class="menu-logo">
           <span class="logo-word">WYBIERZ TRYB</span>
@@ -76,9 +264,11 @@
         <div class="menu-buttons">
           <button id="local-mode-button" class="btn-menu btn-menu--play" type="button">GRAJ SAM</button>
           <button id="bot-mode-button" class="btn-menu btn-menu--online" type="button">PRZECIWKO BOTOWI</button>
+          <button id="mode-back-button" class="btn-menu btn-menu--settings" type="button">WSTECZ</button>
         </div>
       </section>
 
+      <!-- Bot setup screen (overlay modal) -->
       <section id="bot-setup-screen" class="menu-screen hidden">
         <div class="menu-logo">
           <span class="logo-word">USTAWIENIA BOTA</span>
@@ -131,6 +321,7 @@
         </div>
       </section>
 
+      <!-- Online selection screen (overlay modal) -->
       <section id="online-screen" class="menu-screen hidden">
         <div class="menu-logo">
           <span class="logo-word">GRAJ ONLINE</span>
@@ -143,6 +334,7 @@
         </div>
       </section>
 
+      <!-- Online info screen (overlay modal) -->
       <section id="online-info-screen" class="menu-screen hidden">
         <div class="menu-logo">
           <span class="logo-word" id="online-info-title">LOBBY</span>
@@ -153,19 +345,29 @@
         </div>
       </section>
 
-      <section id="settings-screen" class="menu-screen hidden">
+      <!-- Campaign Level Modal -->
+      <section id="campaign-level-modal" class="menu-screen hidden">
         <div class="menu-logo">
-          <span class="logo-word">USTAWIENIA</span>
+          <span class="logo-word" id="level-modal-title">POZIOM 1</span>
+          <span class="logo-tagline" id="level-modal-subtitle">Wioskowy Mędrzec</span>
         </div>
-        <div class="setup-block">
-          <span class="setup-label">Głośność</span>
-          <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="70" />
+        <div class="setup-block" style="text-align: center; gap: 4px;">
+          <span class="setup-label">WYZWANIE</span>
+          <p class="online-info-text" id="level-modal-desc" style="margin-top: 6px; font-size: 14px;"></p>
         </div>
         <div class="menu-buttons">
-          <button id="settings-back-button" class="btn-menu btn-menu--settings" type="button">WSTECZ</button>
+          <button id="level-start-btn" class="btn-menu btn-menu--play" type="button">ROZPOCZNIJ WALKĘ</button>
+          <button id="level-cancel-btn" class="btn-menu btn-menu--settings" type="button">WSTECZ</button>
         </div>
       </section>
 
+      <!-- Legacy / Unused references satisfying DOM binding variables without visual clutter -->
+      <button id="settings-button" style="display: none;"></button>
+      <section id="settings-screen" class="hidden" style="display: none;">
+        <button id="settings-back-button"></button>
+      </section>
+
+      <!-- Gameplay Score HUD -->
       <section id="hud" class="hud hidden">
         <div class="hud-player hud-player--blue" id="hud-blue">
           <span class="player-chip player-chip--a"></span>
@@ -177,6 +379,7 @@
         </div>
       </section>
 
+      <!-- Results/Game Over Card -->
       <section id="result-screen" class="result-screen hidden">
         <div class="result-card">
           <div class="result-badge" id="result-badge">Wynik</div>

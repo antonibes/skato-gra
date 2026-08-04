@@ -28,10 +28,8 @@ const onlineScreen = document.getElementById("online-screen")!;
 const onlineInfoScreen = document.getElementById("online-info-screen")!;
 const onlineInfoTitle = document.getElementById("online-info-title")!;
 const onlineInfoText = document.getElementById("online-info-text")!;
-const settingsScreen = document.getElementById("settings-screen")!;
 const playButton = document.getElementById("play-button")!;
 const playOnlineButton = document.getElementById("play-online-button")!;
-const settingsButton = document.getElementById("settings-button")!;
 const localModeButton = document.getElementById("local-mode-button")!;
 const botModeButton = document.getElementById("bot-mode-button")!;
 const botStartButton = document.getElementById("bot-start-button")!;
@@ -43,7 +41,6 @@ const onlineJoinButton = document.getElementById("online-join-button")!;
 const onlineLeaderboardButton = document.getElementById("online-leaderboard-button")!;
 const onlineBackButton = document.getElementById("online-back-button")!;
 const onlineInfoBackButton = document.getElementById("online-info-back-button")!;
-const settingsBackButton = document.getElementById("settings-back-button")!;
 const volumeSlider = document.getElementById("volume-slider") as HTMLInputElement;
 const hud = document.getElementById("hud")!;
 const hudBlue = document.getElementById("hud-blue")!;
@@ -330,13 +327,64 @@ function refreshHud() {
     if (state.winner === "draw") {
       resultBadge.textContent = "Remis";
       resultBadge.classList.add("result-badge--draw");
+    } else if (activeCampaignLevel !== null) {
+      const config = campaignLevels[activeCampaignLevel];
+      const humanOwner = config.playerColor;
+
+      if (state.winner === humanOwner) {
+        // Player won!
+        const diff = Math.abs(state.scores[config.playerColor] - state.scores[config.botColor]);
+        let stars = 1;
+        if (diff >= 10) stars = 3;
+        else if (diff >= 5) stars = 2;
+
+        // Save stars if higher than previously earned
+        const prevStars = Number(localStorage.getItem(`skato_stars_level_${activeCampaignLevel}`) || "0");
+        if (stars > prevStars) {
+          localStorage.setItem(`skato_stars_level_${activeCampaignLevel}`, String(stars));
+        }
+
+        // ELO increase
+        const eloGain = 20 + stars * 5;
+        playerElo += eloGain;
+        localStorage.setItem("skato_player_elo", String(playerElo));
+        updateEloDisplay();
+
+        // Unlock next level
+        const nextLevel = activeCampaignLevel + 1;
+        if (nextLevel <= 9 && nextLevel > highestUnlockedLevel) {
+          highestUnlockedLevel = nextLevel;
+          localStorage.setItem("skato_highest_level", String(highestUnlockedLevel));
+        }
+
+        resultBadge.textContent = `Poziom ZALICZONY! (+${eloGain} ELO)`;
+        resultBadge.classList.add("result-badge--win");
+      } else {
+        // Player lost or drew
+        const eloLoss = 10;
+        playerElo = Math.max(1000, playerElo - eloLoss);
+        localStorage.setItem("skato_player_elo", String(playerElo));
+        updateEloDisplay();
+
+        resultBadge.textContent = `Porażka (-${eloLoss} ELO)`;
+        resultBadge.classList.add("result-badge--lose");
+      }
+
+      // Re-render nodes
+      renderCampaignNodes();
     } else if (botConfig) {
       const humanOwner = botConfig.owner === "green" ? "blue" : "green";
       if (state.winner === humanOwner) {
-        resultBadge.textContent = "Wygrana!";
+        playerElo += 15;
+        localStorage.setItem("skato_player_elo", String(playerElo));
+        updateEloDisplay();
+        resultBadge.textContent = "Zwycięstwo! (+15 ELO)";
         resultBadge.classList.add("result-badge--win");
       } else {
-        resultBadge.textContent = "Przegrana";
+        playerElo = Math.max(1000, playerElo - 10);
+        localStorage.setItem("skato_player_elo", String(playerElo));
+        updateEloDisplay();
+        resultBadge.textContent = "Porażka (-10 ELO)";
         resultBadge.classList.add("result-badge--lose");
       }
     } else {
@@ -364,6 +412,7 @@ function startGame() {
   gameStarted = true;
   modeScreen.classList.add("hidden");
   botSetupScreen.classList.add("hidden");
+  menuScreen.classList.add("hidden");
   clearDemoBoard();
   spawnTrays();
 
@@ -417,6 +466,14 @@ botBackButton.addEventListener("click", () => {
   botSetupScreen.classList.add("hidden");
   modeScreen.classList.remove("hidden");
 });
+
+const modeBackButton = document.getElementById("mode-back-button")!;
+if (modeBackButton) {
+  modeBackButton.addEventListener("click", () => {
+    modeScreen.classList.add("hidden");
+    menuScreen.classList.remove("hidden");
+  });
+}
 
 let selectedDifficulty: Difficulty = "easy";
 let selectedHumanColor: PieceOwner = "green";
@@ -492,15 +549,164 @@ onlineInfoBackButton.addEventListener("click", () => {
   onlineScreen.classList.remove("hidden");
 });
 
-settingsButton.addEventListener("click", () => {
-  menuScreen.classList.add("hidden");
-  settingsScreen.classList.remove("hidden");
+// Bottom navigation tabs controller
+const navItems = document.querySelectorAll<HTMLButtonElement>(".nav-item");
+const tabViews = document.querySelectorAll<HTMLDivElement>(".lobby-tab-view");
+
+navItems.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const tabName = btn.dataset.tab;
+    if (!tabName) return;
+
+    navItems.forEach((item) => item.classList.toggle("active", item === btn));
+    tabViews.forEach((view) => {
+      view.classList.toggle("active", view.id === `tab-${tabName}`);
+    });
+  });
 });
 
-settingsBackButton.addEventListener("click", () => {
-  settingsScreen.classList.add("hidden");
-  menuScreen.classList.remove("hidden");
+// ELO logic
+let playerElo = Number(localStorage.getItem("skato_player_elo") || "1000");
+const userEloVal = document.getElementById("user-elo-val")!;
+const userTierVal = document.getElementById("user-tier-val")!;
+
+function getTierName(elo: number): string {
+  if (elo >= 1800) return "Wielki Arcymistrz";
+  if (elo >= 1600) return "Mistrz III";
+  if (elo >= 1400) return "Mistrz I";
+  if (elo >= 1200) return "Diament II";
+  if (elo >= 1100) return "Diament I";
+  return "Nowicjusz";
+}
+
+function updateEloDisplay() {
+  if (userEloVal) userEloVal.textContent = `${playerElo} ELO`;
+  if (userTierVal) userTierVal.textContent = getTierName(playerElo);
+  const rankVal = document.getElementById("user-rank-val");
+  if (rankVal) {
+    if (playerElo >= 1800) rankVal.textContent = "1";
+    else if (playerElo >= 1600) rankVal.textContent = "2";
+    else if (playerElo >= 1500) rankVal.textContent = "3";
+    else if (playerElo >= 1350) rankVal.textContent = "4";
+    else if (playerElo >= 1250) rankVal.textContent = "5";
+    else {
+      const rank = Math.max(6, Math.min(99, Math.floor(99 - ((playerElo - 1000) / 250) * 93)));
+      rankVal.textContent = String(rank);
+    }
+  }
+}
+
+// Campaign configuration
+interface CampaignLevel {
+  level: number;
+  title: string;
+  subtitle: string;
+  desc: string;
+  difficulty: Difficulty;
+  playerColor: PieceOwner;
+  botColor: PieceOwner;
+}
+
+const campaignLevels: Record<number, CampaignLevel> = {
+  1: { level: 1, title: "POZIOM 1", subtitle: "Wioskowy Mędrzec", desc: "Naucz się podstaw przeciwko łatwemu botowi. Grasz jako Zielony.", difficulty: "easy", playerColor: "green", botColor: "blue" },
+  2: { level: 2, title: "POZIOM 2", subtitle: "Strażnik Drewna", desc: "Spróbuj zablokować ruchy łatwego bota. Grasz jako Niebieski.", difficulty: "easy", playerColor: "blue", botColor: "green" },
+  3: { level: 3, title: "POZIOM 3", subtitle: "Szaman Lasu", desc: "Pierwsze poważne starcie przeciwko średniemu botowi. Grasz jako Zielony.", difficulty: "medium", playerColor: "green", botColor: "blue" },
+  4: { level: 4, title: "POZIOM 4", subtitle: "Władca Zamku", desc: "Pokonaj średniego bota w starym zamku. Grasz jako Niebieski.", difficulty: "medium", playerColor: "blue", botColor: "green" },
+  5: { level: 5, title: "POZIOM 5", subtitle: "Kamienny Strażnik", desc: "Zabezpiecz swoje szafiry na planszy. Grasz jako Zielony.", difficulty: "medium", playerColor: "green", botColor: "blue" },
+  6: { level: 6, title: "POZIOM 6", subtitle: "Królewski Strateg", desc: "Uważaj na jego ruchy w komnacie tronowej. Grasz jako Niebieski.", difficulty: "hard", playerColor: "blue", botColor: "green" },
+  7: { level: 7, title: "POZIOM 7", subtitle: "Kupiec Miejski", desc: "Szybka, agresywna gra w Złotym Mieście. Grasz jako Zielony.", difficulty: "hard", playerColor: "green", botColor: "blue" },
+  8: { level: 8, title: "POZIOM 8", subtitle: "Burmistrz Metropolii", desc: "Prawie niemożliwy test strategii. Grasz jako Niebieski.", difficulty: "expert", playerColor: "blue", botColor: "green" },
+  9: { level: 9, title: "POZIOM 9", subtitle: "Cesarz Skato", desc: "Pokonaj ostatecznego mistrza, aby zdobyć koronę! Grasz jako Zielony.", difficulty: "master", playerColor: "green", botColor: "blue" },
+};
+
+let highestUnlockedLevel = Number(localStorage.getItem("skato_highest_level") || "1");
+let activeCampaignLevel: number | null = null;
+
+function renderCampaignNodes() {
+  const nodes = document.querySelectorAll<HTMLButtonElement>(".level-node");
+  nodes.forEach((node) => {
+    const lvl = Number(node.dataset.level);
+    if (isNaN(lvl)) return;
+
+    const numEl = node.querySelector<HTMLSpanElement>(".level-num")!;
+    const starsEl = node.querySelector<HTMLSpanElement>(".level-stars")!;
+
+    if (lvl <= highestUnlockedLevel) {
+      node.classList.remove("locked");
+      if (numEl) numEl.textContent = String(lvl);
+      if (starsEl) {
+        const stars = Number(localStorage.getItem(`skato_stars_level_${lvl}`) || "0");
+        starsEl.textContent = "★".repeat(stars) + "☆".repeat(3 - stars);
+      }
+    } else {
+      node.classList.add("locked");
+      if (numEl) numEl.textContent = "🔒";
+      if (starsEl) {
+        starsEl.textContent = "";
+      }
+    }
+  });
+}
+
+// Campaign level details modal handler
+const campaignLevelModal = document.getElementById("campaign-level-modal")!;
+const levelModalTitle = document.getElementById("level-modal-title")!;
+const levelModalSubtitle = document.getElementById("level-modal-subtitle")!;
+const levelModalDesc = document.getElementById("level-modal-desc")!;
+const levelStartBtn = document.getElementById("level-start-btn")!;
+const levelCancelBtn = document.getElementById("level-cancel-btn")!;
+
+const levelNodes = document.querySelectorAll<HTMLButtonElement>(".level-node");
+levelNodes.forEach((node) => {
+  node.addEventListener("click", () => {
+    const lvl = Number(node.dataset.level);
+    if (isNaN(lvl)) return;
+
+    if (lvl > highestUnlockedLevel) return;
+
+    const config = campaignLevels[lvl];
+    if (!config) return;
+
+    activeCampaignLevel = lvl;
+    if (levelModalTitle) levelModalTitle.textContent = config.title;
+    if (levelModalSubtitle) levelModalSubtitle.textContent = config.subtitle;
+    if (levelModalDesc) levelModalDesc.textContent = config.desc;
+
+    menuScreen.classList.add("hidden");
+    campaignLevelModal.classList.remove("hidden");
+  });
 });
+
+if (levelCancelBtn) {
+  levelCancelBtn.addEventListener("click", () => {
+    campaignLevelModal.classList.add("hidden");
+    menuScreen.classList.remove("hidden");
+  });
+}
+
+if (levelStartBtn) {
+  levelStartBtn.addEventListener("click", () => {
+    if (activeCampaignLevel === null) return;
+    const config = campaignLevels[activeCampaignLevel];
+    if (!config) return;
+
+    campaignLevelModal.classList.add("hidden");
+
+    selectedDifficulty = config.difficulty;
+    selectedHumanColor = config.playerColor;
+
+    botConfig = {
+      owner: config.botColor,
+      difficulty: config.difficulty,
+    };
+
+    arrangeTrays(selectedHumanColor);
+    startGame();
+  });
+}
+
+updateEloDisplay();
+renderCampaignNodes();
 
 volumeSlider.value = String(Math.round(getVolume() * 100));
 volumeSlider.addEventListener("input", () => {

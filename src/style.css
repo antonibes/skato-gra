@@ -58,11 +58,11 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 28px;
+  gap: 24px;
   width: min(90vw, 400px);
+  height: 640px; /* Locked height for standard viewport aspect ratio */
   max-height: 90vh;
-  overflow-y: auto;
-  padding: 40px 32px;
+  padding: 32px 24px 0 24px; /* Space for scrollable content and navigation bar */
   border-radius: 24px;
   background: var(--color-bg-panel);
   backdrop-filter: blur(20px);
@@ -72,12 +72,25 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: opacity 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 100;
+  overflow: hidden;
 }
 
 .menu-screen.hidden {
   opacity: 0;
   transform: translate(-50%, -46%) scale(0.92);
   pointer-events: none;
+}
+
+/* Non-card modals (like mode setup & level setup) */
+#mode-screen,
+#bot-setup-screen,
+#online-screen,
+#online-info-screen,
+#campaign-level-modal {
+  height: auto;
+  max-height: 90vh;
+  padding: 40px 32px;
+  overflow-y: auto;
 }
 
 .menu-logo {
@@ -179,7 +192,390 @@ body {
   color: var(--color-text-muted);
 }
 
-/* Button & Card Styles (Chess.com Vibe) */
+/* Lobby tab content container */
+.lobby-content {
+  width: 100%;
+  height: calc(100% - 72px); /* Leaves space for bottom navigation bar */
+  overflow: hidden;
+  position: relative;
+}
+
+.lobby-tab-view {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+
+.lobby-tab-view.active {
+  display: flex;
+  animation: tabFadeIn 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Headers for tabs */
+.tab-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 24px;
+  text-align: center;
+  width: 100%;
+}
+
+.tab-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--color-text-main);
+  text-transform: uppercase;
+}
+
+.tab-subtitle {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Campaign Map Style (Path nodes layout) */
+.campaign-path-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 10px 0;
+}
+
+.campaign-path-svg-bg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.campaign-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+}
+
+.zone-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-border-active);
+  background: rgba(201, 162, 75, 0.15);
+  border: 1px solid rgba(201, 162, 75, 0.25);
+  padding: 4px 12px;
+  border-radius: 999px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.level-nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  align-items: center;
+}
+
+.level-node {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 3.5px solid #191a1e;
+  background: linear-gradient(135deg, #1d1e22, #111215);
+  box-shadow: 
+    0 0 0 3.5px rgba(255, 255, 255, 0.08),
+    0 8px 18px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.level-node:hover:not(.locked) {
+  transform: scale(1.12);
+  box-shadow: 
+    0 0 0 3.5px var(--color-border-active),
+    0 10px 20px rgba(201, 162, 75, 0.25);
+}
+
+.level-node:not(.locked) {
+  background: linear-gradient(135deg, #2c2f35, #1e2024);
+  box-shadow: 
+    0 0 0 3.5px rgba(201, 162, 75, 0.35),
+    0 8px 18px rgba(0, 0, 0, 0.5);
+}
+
+.level-node.locked {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.05);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.level-num {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text-main);
+  line-height: 1;
+}
+
+.level-stars {
+  position: absolute;
+  bottom: -18px;
+  font-size: 10px;
+  color: var(--color-border-active);
+  letter-spacing: 1px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Staggered level node positions for a winding campaign track path */
+.level-nodes button:nth-child(1) {
+  transform: translateX(-40px);
+}
+.level-nodes button:nth-child(1):hover:not(.locked) {
+  transform: translateX(-40px) scale(1.12);
+}
+
+.level-nodes button:nth-child(3) {
+  transform: translateX(40px);
+}
+.level-nodes button:nth-child(3):hover:not(.locked) {
+  transform: translateX(40px) scale(1.12);
+}
+
+/* Leaderboard List styles */
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: all 0.2s ease;
+}
+
+.leaderboard-item:hover:not(.user-item) {
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateX(2px);
+}
+
+.rank-badge {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+
+.rank-num {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  width: 24px;
+  text-align: center;
+}
+
+.rank-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.rank-avatar.bg-gold {
+  background: linear-gradient(135deg, #ffd700, #b8860b);
+}
+
+.rank-avatar.bg-silver {
+  background: linear-gradient(135deg, #c0c0c0, #708090);
+}
+
+.rank-avatar.bg-bronze {
+  background: linear-gradient(135deg, #cd7f32, #8b4513);
+}
+
+.rank-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.rank-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.rank-title {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.rank-score {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-border-active);
+}
+
+.leaderboard-item.user-item {
+  margin-top: 12px;
+  background: rgba(201, 162, 75, 0.07);
+  border: 1px dashed rgba(201, 162, 75, 0.3);
+  box-shadow: 0 4px 15px rgba(201, 162, 75, 0.06);
+}
+
+.rank-avatar.user-avatar {
+  background: var(--color-border-active);
+  color: #121316;
+}
+
+/* Settings and rules container */
+.settings-content-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+.rules-card {
+  padding: 20px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rules-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--color-border-active);
+  text-transform: uppercase;
+}
+
+.rules-text {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  text-align: left;
+}
+
+/* Level details preview inside modal */
+.level-desc-box {
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 4px;
+  max-width: 100%;
+  width: 100%;
+  text-align: center;
+}
+
+/* Bottom Navigation Bar style */
+.bottom-nav {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  background: #151619;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 12px max(0px, env(safe-area-inset-bottom));
+  z-index: 10;
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  gap: 4px;
+  flex: 1;
+  height: 100%;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.nav-item:hover {
+  color: var(--color-text-main);
+}
+
+.nav-item.active {
+  color: var(--color-border-active);
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.25);
+  stroke-width: 2.2;
+}
+
+.nav-item.active .nav-icon {
+  transform: scale(1.15) translateY(-2px);
+}
+
+.nav-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Button & Choice Styles */
 
 .menu-buttons {
   display: flex;
@@ -207,7 +603,6 @@ body {
   transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* Play button: Chess-green style */
 .btn-menu--play {
   background: #81b64c;
   box-shadow: 0 4px 0 #5f8e32, 0 6px 14px rgba(129, 182, 76, 0.2);
@@ -225,7 +620,6 @@ body {
   box-shadow: 0 2px 0 #5f8e32, 0 4px 6px rgba(129, 182, 76, 0.2);
 }
 
-/* Online button: Charcoal style */
 .btn-menu--online {
   background: #2b2d31;
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -244,7 +638,6 @@ body {
   box-shadow: 0 2px 0 #1c1d20, 0 4px 6px rgba(0, 0, 0, 0.35);
 }
 
-/* Secondary/settings buttons: Minimal transparent style */
 .btn-menu--settings {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -341,7 +734,7 @@ body {
   box-shadow: 0 0 16px rgba(24, 78, 161, 0.2);
 }
 
-/* Difficulty Cards inside Bot Setup */
+/* Difficulty Cards */
 .difficulty-card {
   display: flex;
   align-items: center;
@@ -411,7 +804,7 @@ body {
 }
 
 .online-info-text {
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--color-text-muted);
   text-align: center;
