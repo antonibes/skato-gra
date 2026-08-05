@@ -1068,6 +1068,42 @@ body {
   color: var(--color-text-main);
 }
 
+.undo-button {
+  position: absolute;
+  top: max(24px, env(safe-area-inset-top));
+  left: max(16px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, var(--color-panel-raised), rgba(18, 13, 9, 0.92));
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  color: var(--color-text-main);
+  font-family: var(--font-family);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  z-index: 10;
+  transition: opacity 0.3s ease, transform 0.3s ease, filter 0.15s ease;
+}
+
+.undo-button:hover {
+  filter: brightness(1.15);
+}
+
+.undo-button:active {
+  transform: scale(0.95);
+}
+
+.undo-button.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+}
+
 .result-score-container {
   display: flex;
   align-items: center;

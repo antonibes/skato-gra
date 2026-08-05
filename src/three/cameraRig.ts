@@ -20,8 +20,16 @@ const FIT_SAFETY = 1.15;
 const MENU_ELEVATION_DEG = 36;
 const MENU_FORWARD_BIAS = 0.5;
 
-const GAME_ELEVATION_DEG = 28;
+// Flatter (closer to top-down) than before — on a phone, a finger dragging a piece at a steeper
+// tilt covers more of the target cell. Lower elevation trades a bit of the "sitting at the
+// table" depth feel for a clearer, more occlusion-resistant view of the grid.
+const GAME_ELEVATION_DEG = 20;
 const GAME_FORWARD_BIAS = 1.8;
+
+// A pulled-back overview shown once the game ends, so the whole finished board (and the
+// winning-line highlight) reads clearly instead of staying at the closer gameplay angle.
+const END_ELEVATION_DEG = 34;
+const END_FORWARD_BIAS = 0.6;
 
 /** Distance from the board center a camera with this fov/aspect needs, so the
  *  full board fits inside the frustum. Prevents extreme zooming on wide screens. */
@@ -62,6 +70,10 @@ export function menuPose(camera: THREE.PerspectiveCamera): CameraPose {
 
 export function gamePose(camera: THREE.PerspectiveCamera): CameraPose {
   return poseForElevation(camera, GAME_ELEVATION_DEG, GAME_FORWARD_BIAS, FIT_HALF_WIDTH);
+}
+
+export function endPose(camera: THREE.PerspectiveCamera): CameraPose {
+  return poseForElevation(camera, END_ELEVATION_DEG, END_FORWARD_BIAS, FIT_HALF_WIDTH);
 }
 
 function easeInOutCubic(t: number): number {

@@ -11,7 +11,7 @@ import {
   worldToCell,
 } from "./config";
 import { randomTraySpot, type Piece, type PieceOwner } from "./pieces";
-import { isLegalMove, applyMove, type GameState } from "../game/rules";
+import { isLegalMove, applyMove, calculatePlayerScore, type GameState } from "../game/rules";
 import { playPickup, playPlace } from "../audio/sound";
 
 export interface Tray {
@@ -26,6 +26,13 @@ interface FallingPiece {
   targetY: number;
 }
 
+interface PlacementRecord {
+  piece: Piece;
+  col: number;
+  row: number;
+  owner: PieceOwner;
+}
+
 // Raycast against the board surface (y=0), not the piece's lifted drag height — otherwise the
 // elevated camera creates a parallax offset between where you point and where the piece lands.
 const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -33,6 +40,17 @@ const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 // A tap doesn't need to land exactly inside a piece's own footprint — this is the effective
 // touch target radius (in world units) used as a fallback when the precise raycast misses.
 const PICKUP_TOLERANCE = PIECE_SIZE * 1.3;
+
+// While dragging, the effective aim point is shifted this many CSS pixels above the actual
+// finger — on a phone your fingertip sits right on top of the cell you're trying to hit, so
+// aiming "through" the finger is unreliable. Shifting the aim point (and therefore the piece
+// and the target-cell highlight, since both are driven by the same point) up and clear of the
+// finger means what you see is what you get, instead of guessing at a hidden target.
+const DRAG_SCREEN_OFFSET_PX = 100;
+
+// Held noticeably larger than its resting size, on top of the screen-space offset above, so the
+// piece itself is unambiguous while airborne.
+const DRAG_SCALE = 1.6;
 
 export interface DragCandidate {
   col: number;
@@ -44,6 +62,7 @@ export interface Interaction {
   update: (delta: number) => boolean;
   placeForOwner: (tray: Tray, col: number, row: number) => boolean;
   dropIn: (piece: Piece, targetY: number) => void;
+  undoToPreviousTurn: (humanOwner: PieceOwner) => boolean;
 }
 
 export function setupInteraction(
@@ -58,13 +77,14 @@ export function setupInteraction(
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const falling: FallingPiece[] = [];
+  const history: PlacementRecord[] = [];
 
   let dragging: { piece: Piece; tray: Tray } | null = null;
 
-  function updatePointer(event: PointerEvent) {
+  function updatePointer(event: PointerEvent, offsetYPx = 0) {
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    pointer.y = -((event.clientY - offsetYPx - rect.top) / rect.height) * 2 + 1;
   }
 
   function isPlayableByTouch(tray: Tray): boolean {
@@ -117,6 +137,7 @@ export function setupInteraction(
 
   function returnToTray(piece: Piece, tray: Tray) {
     piece.mesh.castShadow = true;
+    piece.mesh.scale.setScalar(1);
     const layer = Math.floor(tray.pieces.length / TRAY_PIECES_PER_LAYER);
     const spot = randomTraySpot(tray.origin, layer);
     piece.mesh.position.x = spot.x;
@@ -127,6 +148,7 @@ export function setupInteraction(
 
   function commitPlacement(piece: Piece, col: number, row: number) {
     piece.mesh.castShadow = true;
+    piece.mesh.scale.setScalar(1);
     const world = cellToWorld(col, row);
     piece.mesh.position.x = world.x;
     piece.mesh.position.z = world.z;
@@ -135,6 +157,7 @@ export function setupInteraction(
     dropInto(piece, PIECE_HEIGHT / 2);
     playPlace();
     applyMove(state, piece.owner, col, row);
+    history.push({ piece, col, row, owner: piece.owner });
     onChange();
   }
 
@@ -153,6 +176,7 @@ export function setupInteraction(
     tray.pieces.splice(tray.pieces.indexOf(piece), 1);
     dragging = { piece, tray };
     piece.mesh.position.y = DRAG_HEIGHT;
+    piece.mesh.scale.setScalar(DRAG_SCALE);
     // No cast shadow while airborne — the live gold/red cell highlight is the authoritative
     // "where will this land" indicator; a real cast shadow at this height would drift away from
     // it (light isn't perfectly vertical) and read as a second, conflicting target.
@@ -162,7 +186,7 @@ export function setupInteraction(
 
   function onPointerMove(event: PointerEvent) {
     if (!dragging) return;
-    updatePointer(event);
+    updatePointer(event, DRAG_SCREEN_OFFSET_PX);
     raycaster.setFromCamera(pointer, camera);
     const point = new THREE.Vector3();
     if (raycaster.ray.intersectPlane(dragPlane, point)) {
@@ -235,5 +259,51 @@ export function setupInteraction(
     return true;
   }
 
-  return { update, placeForOwner, dropIn: dropInto };
+  function undoOnePlacement(): boolean {
+    const record = history.pop();
+    if (!record) return false;
+
+    const { piece, col, row, owner } = record;
+    state.board[row][col] = null;
+    state.scores.green = calculatePlayerScore(state.board, "green");
+    state.scores.blue = calculatePlayerScore(state.board, "blue");
+    state.over = false;
+    state.winner = null;
+    state.endReason = null;
+    state.endTriggeredBy = null;
+    state.winningLine = null;
+    state.current = owner;
+
+    piece.placed = false;
+    const tray = trays.find((t) => t.owner === owner);
+    if (tray) {
+      const layer = Math.floor(tray.pieces.length / TRAY_PIECES_PER_LAYER);
+      const spot = randomTraySpot(tray.origin, layer);
+      piece.mesh.position.x = spot.x;
+      piece.mesh.position.z = spot.z;
+      tray.pieces.push(piece);
+      dropInto(piece, spot.y);
+    }
+    return true;
+  }
+
+  /** Undoes moves until it's the given player's turn again with their own last placement taken
+   *  back — i.e. reverts the bot's reply along with the human's move that triggered it, landing
+   *  back on the human's turn as if that move never happened. */
+  function undoToPreviousTurn(humanOwner: PieceOwner): boolean {
+    let undidAny = false;
+
+    while (history.length > 0 && history[history.length - 1].owner !== humanOwner) {
+      if (!undoOnePlacement()) break;
+      undidAny = true;
+    }
+
+    if (history.length > 0 && history[history.length - 1].owner === humanOwner) {
+      undidAny = undoOnePlacement() || undidAny;
+    }
+
+    return undidAny;
+  }
+
+  return { update, placeForOwner, dropIn: dropInto, undoToPreviousTurn };
 }

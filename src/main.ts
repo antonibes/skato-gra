@@ -4,7 +4,7 @@ import { createBoard } from "./three/board";
 import { createTable } from "./three/table";
 import { createTrayMesh, createScatteredPieces, createDemoPiece, randomTraySpot, type PieceOwner } from "./three/pieces";
 import { setupInteraction, type Tray, type DragCandidate } from "./three/interaction";
-import { animateCameraTo, menuPose, gamePose } from "./three/cameraRig";
+import { animateCameraTo, menuPose, gamePose, endPose } from "./three/cameraRig";
 import {
   BOARD_SIZE,
   BOARD_HALF,
@@ -58,6 +58,8 @@ const resultCalcGreen = document.getElementById("result-calc-green")!;
 const resultCalcBlue = document.getElementById("result-calc-blue")!;
 const resultTime = document.getElementById("result-time")!;
 const hudTimer = document.getElementById("hud-timer")!;
+const undoButton = document.getElementById("undo-button")!;
+const undoCountEl = document.getElementById("undo-count")!;
 const restartButton = document.getElementById("restart-button")!;
 
 const { renderer, scene, camera } = createSceneRig(canvas);
@@ -279,6 +281,14 @@ interface BotConfig {
 let botConfig: BotConfig | null = null;
 let botThinking = false;
 
+// Undo is a training aid: only offered on the two easiest bot tiers, and only a couple of times
+// per game, so it doesn't undermine the harder/ranked levels.
+let undoUsesRemaining = 0;
+
+function undoUsesForDifficulty(difficulty: Difficulty): number {
+  return difficulty === "easy" || difficulty === "medium" ? 2 : 0;
+}
+
 function trayFor(owner: PieceOwner): Tray {
   return owner === "green" ? greenTray : blueTray;
 }
@@ -361,7 +371,13 @@ function refreshHud() {
   hudBlue.classList.toggle("hud-player--active", !state.over && state.current === "blue");
   hudGreen.classList.toggle("hud-player--active", !state.over && state.current === "green");
 
+  const canOfferUndo = botConfig !== null && undoUsesRemaining > 0 && !state.over && !botThinking;
+  undoButton.classList.toggle("hidden", !canOfferUndo);
+  if (canOfferUndo) undoCountEl.textContent = String(undoUsesRemaining);
+
   if (state.over) {
+    animateCameraTo(camera, gamePose(camera), endPose(camera), 1400);
+
     resultTitle.textContent = outcomeLabel();
     resultReason.textContent = reasonLabel();
     resultTime.textContent =
@@ -515,6 +531,7 @@ playButton.addEventListener("click", () => {
 
 localModeButton.addEventListener("click", () => {
   botConfig = null;
+  undoUsesRemaining = 0;
   arrangeTrays("green");
   startGame();
 });
@@ -565,12 +582,23 @@ botStartButton.addEventListener("click", () => {
     owner: selectedHumanColor === "green" ? "blue" : "green",
     difficulty: selectedDifficulty,
   };
+  undoUsesRemaining = undoUsesForDifficulty(selectedDifficulty);
   arrangeTrays(selectedHumanColor);
   startGame();
 });
 
 restartButton.addEventListener("click", () => {
   window.location.reload();
+});
+
+undoButton.addEventListener("click", () => {
+  if (!botConfig || undoUsesRemaining <= 0 || botThinking || state.over) return;
+  const humanOwner: PieceOwner = botConfig.owner === "green" ? "blue" : "green";
+  const undone = interaction.undoToPreviousTurn(humanOwner);
+  if (undone) {
+    undoUsesRemaining--;
+    refreshHud();
+  }
 });
 
 playOnlineButton.addEventListener("click", () => {
@@ -761,6 +789,7 @@ if (levelStartBtn) {
       owner: config.botColor,
       difficulty: config.difficulty,
     };
+    undoUsesRemaining = undoUsesForDifficulty(config.difficulty);
 
     arrangeTrays(selectedHumanColor);
     startGame();
