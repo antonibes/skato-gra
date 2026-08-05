@@ -21,8 +21,10 @@ export const GRAVITY = -16;
 export const BOUNCE_DAMPING = 0.32;
 export const MIN_BOUNCE_SPEED = 0.55;
 
-export const TABLE_WIDTH = 120;
-export const TABLE_DEPTH = 120;
+// Generous enough to fill the frame at any camera angle/rotation, without being wastefully
+// larger than what's ever actually visible (120 was ~9x the area anything needs, pure overdraw).
+export const TABLE_WIDTH = 60;
+export const TABLE_DEPTH = 60;
 
 export const COLOR = {
   graphite900: 0x1d1f23,

@@ -48,15 +48,14 @@ function materialFor(color: number): THREE.MeshStandardMaterial {
   const cached = materialCache.get(color);
   if (cached) return cached;
 
-  const material = new THREE.MeshPhysicalMaterial({
+  // Plain MeshStandardMaterial, not MeshPhysicalMaterial with clearcoat/transmission — the
+  // transmission pass forces an extra full-scene render every frame just to fake a glassy
+  // sheen on 64 tiny pieces, which is the single most expensive thing this scene was doing on
+  // mobile GPUs. A polished look here comes cheaply from roughness/metalness alone.
+  const material = new THREE.MeshStandardMaterial({
     color,
-    roughness: 0.12,
-    metalness: 0.05,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.04,
-    transmission: 0.15,
-    thickness: 0.3,
-    ior: 1.52,
+    roughness: 0.28,
+    metalness: 0.12,
   });
   materialCache.set(color, material);
   return material;
@@ -81,15 +80,10 @@ export function createPiece(owner: PieceOwner, color: number): Piece {
 /** A piece with its own (non-shared) transparent material, so it can fade out independently —
  *  used for the decorative menu-background board, which is cleared away when a real game starts. */
 export function createDemoPiece(color: number): THREE.Mesh {
-  const material = new THREE.MeshPhysicalMaterial({
+  const material = new THREE.MeshStandardMaterial({
     color,
-    roughness: 0.12,
-    metalness: 0.05,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.04,
-    transmission: 0.15,
-    thickness: 0.3,
-    ior: 1.52,
+    roughness: 0.28,
+    metalness: 0.12,
     transparent: true,
     opacity: 1,
   });

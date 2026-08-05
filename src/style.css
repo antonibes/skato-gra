@@ -1,16 +1,27 @@
 :root {
-  --color-bg-base: #0f1013;
-  --color-bg-panel: rgba(22, 23, 27, 0.78);
-  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  /* Warm walnut/graphite base instead of neutral near-black — the whole UI should read as a
+     crafted wooden game, not a generic app shell. */
+  --color-bg-base: #14100c;
+  --color-bg-panel: rgba(26, 20, 15, 0.92);
+  --color-panel-raised: #241a12;
+  --color-border-subtle: rgba(201, 162, 75, 0.16);
   --color-border-active: #c9a24b;
 
   --color-text-main: #f1ede4;
-  --color-text-muted: #8e929d;
+  --color-text-muted: #a89881;
 
-  --color-player-a: #184ea1; /* Sapphire */
-  --color-player-b: #0f854b; /* Jade */
+  --color-wood: #6b4a30;
+  --color-wood-dark: #3c2818;
+  --color-bordeaux: #6e2331;
+  --color-bordeaux-light: #8c3242;
+  --color-gold: #c9a24b;
+  --color-gold-soft: #e4cd8f;
 
-  --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --color-player-a: #3b6fa8; /* Sapphire, muted to sit with the wood palette */
+  --color-player-b: #3f8f5c; /* Jade, muted to sit with the wood palette */
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color-scheme: dark;
 }
 
@@ -48,7 +59,9 @@ body {
   touch-action: none;
 }
 
-/* Glassmorphic Centered Menu Cards */
+/* Centered menu card — a solid lacquered panel with a thin gold edge, not a frosted-glass app
+   sheet. Kept slightly translucent so the board is still visible behind it, but the material
+   reads as wood/lacquer rather than glass (minimal blur, warm tint, no bounce). */
 
 .menu-screen {
   position: absolute;
@@ -63,21 +76,21 @@ body {
   height: 590px; /* Locked height for standard viewport aspect ratio */
   max-height: 90vh;
   padding: 32px 24px 0 24px; /* Space for scrollable content and navigation bar */
-  border-radius: 24px;
-  background: var(--color-bg-panel);
-  backdrop-filter: blur(20px);
+  border-radius: 18px;
+  background: linear-gradient(165deg, var(--color-bg-panel), rgba(18, 14, 10, 0.95));
+  backdrop-filter: blur(4px);
   border: 1px solid var(--color-border-subtle);
-  box-shadow: 
+  box-shadow:
     0 30px 60px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: opacity 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: opacity 0.35s ease, transform 0.35s ease;
   z-index: 100;
   overflow: hidden;
 }
 
 .menu-screen.hidden {
   opacity: 0;
-  transform: translate(-50%, -46%) scale(0.92);
+  transform: translate(-50%, -48%) scale(0.97);
   pointer-events: none;
 }
 
@@ -152,18 +165,18 @@ body {
 }
 
 .piece-3d.green {
-  background: #0f854b;
-  border: 1px solid #1eb268;
-  box-shadow: 
-    -1.5px 1.5px 0px #09522e,
+  background: var(--color-player-b);
+  border: 1px solid #5aab77;
+  box-shadow:
+    -1.5px 1.5px 0px #275c3d,
     -2px 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .piece-3d.blue {
-  background: #184ea1;
-  border: 1px solid #3776db;
-  box-shadow: 
-    -1.5px 1.5px 0px #0e2f63,
+  background: var(--color-player-a);
+  border: 1px solid #5f8fc0;
+  box-shadow:
+    -1.5px 1.5px 0px #24486b,
     -2px 2px 4px rgba(0, 0, 0, 0.6);
 }
 
@@ -177,11 +190,11 @@ body {
 }
 
 .logo-word {
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   color: var(--color-text-main);
-  text-indent: 0.18em;
   text-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
@@ -238,11 +251,11 @@ body {
 }
 
 .tab-title {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   color: var(--color-text-main);
-  text-transform: uppercase;
 }
 
 .tab-subtitle {
@@ -301,35 +314,36 @@ body {
   align-items: center;
 }
 
+/* Wooden medallions instead of neon game-map nodes — a coin, not a candy button. */
 .level-node {
   position: relative;
   width: 58px;
   height: 58px;
   border-radius: 50%;
-  border: 3.5px solid #191a1e;
-  background: linear-gradient(135deg, #1d1e22, #111215);
-  box-shadow: 
-    0 0 0 3.5px rgba(255, 255, 255, 0.08),
+  border: 3px solid var(--color-wood-dark);
+  background: linear-gradient(135deg, var(--color-panel-raised), #16100b);
+  box-shadow:
+    0 0 0 2px rgba(201, 162, 75, 0.12),
     0 8px 18px rgba(0, 0, 0, 0.45);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
 }
 
 .level-node:hover:not(.locked) {
-  transform: scale(1.12);
-  box-shadow: 
-    0 0 0 3.5px var(--color-border-active),
+  filter: brightness(1.12);
+  box-shadow:
+    0 0 0 2px var(--color-border-active),
     0 10px 20px rgba(201, 162, 75, 0.25);
 }
 
 .level-node:not(.locked) {
-  background: linear-gradient(135deg, #2c2f35, #1e2024);
-  box-shadow: 
-    0 0 0 3.5px rgba(201, 162, 75, 0.35),
+  background: linear-gradient(135deg, var(--color-wood), var(--color-wood-dark));
+  box-shadow:
+    0 0 0 2px rgba(201, 162, 75, 0.4),
     0 8px 18px rgba(0, 0, 0, 0.5);
 }
 
@@ -338,12 +352,13 @@ body {
   border-color: rgba(255, 255, 255, 0.05);
   box-shadow: none;
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .level-num {
-  font-size: 15px;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
   color: var(--color-text-main);
   line-height: 1;
 }
@@ -522,15 +537,15 @@ body {
   left: 0;
   right: 0;
   height: 72px;
-  background: #151619;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--color-wood-dark);
+  border-top: 1px solid var(--color-border-subtle);
   display: flex;
   justify-content: space-around;
   align-items: center;
   padding: 0 12px max(0px, env(safe-area-inset-bottom));
   z-index: 10;
-  border-bottom-left-radius: 24px;
-  border-bottom-right-radius: 24px;
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
 }
 
 .nav-item {
@@ -593,6 +608,8 @@ body {
   width: 100%;
 }
 
+/* Flat, lacquered buttons — a thin gold edge and a soft shadow instead of the hard offset
+   "candy" bevel + bouncy spring hover typical of casual mobile games. */
 .btn-menu {
   position: relative;
   display: flex;
@@ -603,67 +620,62 @@ body {
   width: 100%;
   font-family: var(--font-family);
   font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   padding: 14px 18px;
-  border-radius: 14px;
-  border: none;
+  border-radius: 10px;
+  border: 1px solid transparent;
   color: #ffffff;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: filter 0.15s ease, transform 0.15s ease;
 }
 
 .btn-menu--play {
-  background: #81b64c;
-  box-shadow: 0 4px 0 #5f8e32, 0 6px 14px rgba(129, 182, 76, 0.2);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(160deg, var(--color-bordeaux-light), var(--color-bordeaux));
+  border-color: rgba(228, 205, 143, 0.3);
+  box-shadow: 0 8px 20px rgba(110, 35, 49, 0.35);
 }
 
 .btn-menu--play:hover {
-  background: #95cc5c;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 0 #5f8e32, 0 10px 18px rgba(129, 182, 76, 0.3);
+  filter: brightness(1.08);
 }
 
 .btn-menu--play:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 #5f8e32, 0 4px 6px rgba(129, 182, 76, 0.2);
+  transform: scale(0.97);
+  filter: brightness(0.95);
 }
 
 .btn-menu--online {
-  background: #2b2d31;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 4px 0 #1c1d20, 0 6px 12px rgba(0, 0, 0, 0.35);
+  background: linear-gradient(160deg, var(--color-panel-raised), var(--color-wood-dark));
+  border-color: var(--color-border-subtle);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
 .btn-menu--online:hover {
-  background: #35383d;
-  border-color: rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 0 #1c1d20, 0 10px 16px rgba(0, 0, 0, 0.4);
+  filter: brightness(1.15);
 }
 
 .btn-menu--online:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 #1c1d20, 0 4px 6px rgba(0, 0, 0, 0.35);
+  transform: scale(0.97);
+  filter: brightness(0.95);
 }
 
 .btn-menu--settings {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--color-text-muted);
+  box-shadow: none;
 }
 
 .btn-menu--settings:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--color-border-subtle);
   color: var(--color-text-main);
-  transform: translateY(-1px);
 }
 
 .btn-menu--settings:active {
-  transform: translateY(1px);
+  transform: scale(0.97);
 }
 
 .btn-icon {
@@ -732,17 +744,17 @@ body {
 }
 
 .btn-choice[data-color="green"].btn-choice--selected {
-  border-color: #4dab74;
-  background: rgba(15, 133, 75, 0.15);
+  border-color: var(--color-player-b);
+  background: rgba(63, 143, 92, 0.18);
   color: #ffffff;
-  box-shadow: 0 0 16px rgba(15, 133, 75, 0.2);
+  box-shadow: 0 0 16px rgba(63, 143, 92, 0.2);
 }
 
 .btn-choice[data-color="blue"].btn-choice--selected {
-  border-color: #5a93d4;
-  background: rgba(24, 78, 161, 0.15);
+  border-color: var(--color-player-a);
+  background: rgba(59, 111, 168, 0.18);
   color: #ffffff;
-  box-shadow: 0 0 16px rgba(24, 78, 161, 0.2);
+  box-shadow: 0 0 16px rgba(59, 111, 168, 0.2);
 }
 
 /* Difficulty Cards */
@@ -903,12 +915,12 @@ body {
   align-items: center;
   gap: 12px;
   padding: 10px 22px;
-  border-radius: 16px;
-  background: rgba(18, 19, 22, 0.85);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  background: linear-gradient(160deg, var(--color-panel-raised), rgba(18, 13, 9, 0.92));
+  backdrop-filter: blur(3px);
+  border: 1px solid var(--color-border-subtle);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.25);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
   min-width: 120px;
   justify-content: center;
 }
@@ -920,13 +932,13 @@ body {
 }
 
 .player-chip--a {
-  background: #5a93d4;
-  box-shadow: 0 0 12px #5a93d4;
+  background: var(--color-player-a);
+  box-shadow: 0 0 12px var(--color-player-a);
 }
 
 .player-chip--b {
-  background: #4dab74;
-  box-shadow: 0 0 12px #4dab74;
+  background: var(--color-player-b);
+  box-shadow: 0 0 12px var(--color-player-b);
 }
 
 .player-score {
@@ -938,14 +950,14 @@ body {
 }
 
 .hud-player--blue.hud-player--active {
-  border-color: #5a93d4;
-  box-shadow: 0 0 20px rgba(24, 78, 161, 0.35);
+  border-color: var(--color-player-a);
+  box-shadow: 0 0 20px rgba(59, 111, 168, 0.35);
   transform: scale(1.06);
 }
 
 .hud-player--green.hud-player--active {
-  border-color: #4dab74;
-  box-shadow: 0 0 20px rgba(15, 133, 75, 0.35);
+  border-color: var(--color-player-b);
+  box-shadow: 0 0 20px rgba(63, 143, 92, 0.35);
   transform: scale(1.06);
 }
 
@@ -981,8 +993,8 @@ body {
   max-height: 48vh;
   overflow-y: auto;
   padding: 28px 28px;
-  border-radius: 24px;
-  background: linear-gradient(145deg, #1d1f23, #15161a);
+  border-radius: 18px;
+  background: linear-gradient(155deg, var(--color-panel-raised), #150f0a);
   border: 1px solid var(--color-border-subtle);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
   text-align: center;
@@ -998,27 +1010,28 @@ body {
 }
 
 .result-badge--win {
-  background: rgba(15, 133, 75, 0.2);
-  color: #4dab74;
-  border: 1px solid rgba(15, 133, 75, 0.4);
+  background: rgba(63, 143, 92, 0.2);
+  color: #7dc296;
+  border: 1px solid rgba(63, 143, 92, 0.4);
 }
 
 .result-badge--lose {
-  background: rgba(220, 76, 76, 0.15);
-  color: #ff6b6b;
-  border: 1px solid rgba(220, 76, 76, 0.35);
+  background: rgba(140, 50, 66, 0.22);
+  color: #d98a95;
+  border: 1px solid rgba(140, 50, 66, 0.45);
 }
 
 .result-badge--draw {
-  background: rgba(24, 78, 161, 0.2);
-  color: #5a93d4;
-  border: 1px solid rgba(24, 78, 161, 0.4);
+  background: rgba(59, 111, 168, 0.2);
+  color: #7fa8d6;
+  border: 1px solid rgba(59, 111, 168, 0.4);
 }
 
 .result-title {
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-family: var(--font-display);
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   color: #f1ede4;
   margin-top: -5px;
 }
@@ -1044,10 +1057,10 @@ body {
   justify-content: center;
   min-width: 76px;
   padding: 10px 16px;
-  border-radius: 16px;
-  background: rgba(18, 19, 22, 0.85);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  background: linear-gradient(160deg, var(--color-panel-raised), rgba(18, 13, 9, 0.92));
+  backdrop-filter: blur(3px);
+  border: 1px solid var(--color-border-subtle);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -1085,16 +1098,17 @@ body {
 }
 
 .result-score-box--green .result-score-label {
-  color: #4dab74;
+  color: var(--color-player-b);
 }
 
 .result-score-box--blue .result-score-label {
-  color: #5a93d4;
+  color: var(--color-player-a);
 }
 
 .result-score-value {
-  font-size: 38px;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
   color: #f1ede4;
   line-height: 1.1;
 }

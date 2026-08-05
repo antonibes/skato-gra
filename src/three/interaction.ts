@@ -41,7 +41,7 @@ export interface DragCandidate {
 }
 
 export interface Interaction {
-  update: (delta: number) => void;
+  update: (delta: number) => boolean;
   placeForOwner: (tray: Tray, col: number, row: number) => boolean;
   dropIn: (piece: Piece, targetY: number) => void;
 }
@@ -201,7 +201,11 @@ export function setupInteraction(
   dom.addEventListener("pointerup", onPointerUp);
   dom.addEventListener("pointercancel", onPointerUp);
 
-  function update(delta: number) {
+  /** Returns whether anything actually moved this frame — used to decide whether the shadow
+   *  map needs recomputing (see scene.ts: it's frozen by default for performance). */
+  function update(delta: number): boolean {
+    const wasActive = falling.length > 0 || dragging !== null;
+
     for (let i = falling.length - 1; i >= 0; i--) {
       const fp = falling[i];
       fp.velocityY += GRAVITY * delta;
@@ -218,6 +222,8 @@ export function setupInteraction(
         fp.piece.mesh.position.y = nextY;
       }
     }
+
+    return wasActive || falling.length > 0 || dragging !== null;
   }
 
   function placeForOwner(tray: Tray, col: number, row: number): boolean {

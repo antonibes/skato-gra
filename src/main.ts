@@ -466,6 +466,7 @@ const interaction = setupInteraction(
 );
 
 let gameStarted = false;
+let forceShadowUpdateUntil = 0;
 
 function startGame() {
   gameStarted = true;
@@ -474,6 +475,7 @@ function startGame() {
   menuScreen.classList.add("hidden");
   clearDemoBoard();
   spawnTrays();
+  forceShadowUpdateUntil = performance.now() + 2200;
 
   // Smoothly animate the board back to 0 rotation
   const board = scene.getObjectByName("board");
@@ -700,7 +702,7 @@ function renderCampaignNodes() {
       }
     } else {
       node.classList.add("locked");
-      if (numEl) numEl.textContent = "🔒";
+      if (numEl) numEl.textContent = "–";
       if (starsEl) {
         starsEl.textContent = "";
       }
@@ -794,12 +796,14 @@ const clock = new THREE.Clock();
 
 function tick() {
   const delta = Math.min(clock.getDelta(), 0.05);
-  interaction.update(delta);
+  const interactionActive = interaction.update(delta);
 
+  let boardRotating = false;
   if (!gameStarted) {
     const board = scene.getObjectByName("board");
     if (board) {
       board.rotation.y += 0.08 * delta;
+      boardRotating = true;
     }
   }
 
@@ -812,6 +816,12 @@ function tick() {
 
   if (matchStartTime !== null && !state.over) {
     hudTimer.textContent = formatDuration(performance.now() - matchStartTime);
+  }
+
+  // Shadow map is frozen by default (see scene.ts) — only pay for recomputing it on frames
+  // where something that actually casts/receives a shadow is moving.
+  if (interactionActive || boardRotating || performance.now() < forceShadowUpdateUntil) {
+    renderer.shadowMap.needsUpdate = true;
   }
 
   renderer.render(scene, camera);

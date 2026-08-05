@@ -14,15 +14,21 @@ export function createSceneRig(canvas: HTMLCanvasElement): SceneRig {
     powerPreference: "high-performance",
     precision: "mediump"
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // Recomputing the shadow map is one of the most expensive things a frame does, and by default
+  // three.js redoes it every frame even when nothing has moved. For a turn-based board game,
+  // most frames ARE static (the player is just looking at the board) — the caller flags
+  // `renderer.shadowMap.needsUpdate = true` only on frames where something actually animates.
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(COLOR.graphite900);
-  scene.fog = new THREE.Fog(COLOR.graphite900, 45, 95);
+  scene.fog = new THREE.Fog(COLOR.graphite900, 24, 48);
 
   const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 100);
 
@@ -36,8 +42,8 @@ export function createSceneRig(canvas: HTMLCanvasElement): SceneRig {
   const keyLight = new THREE.DirectionalLight(0xffeed9, 1.45);
   keyLight.position.set(1.5, 15, 2.5);
   keyLight.castShadow = true;
-  keyLight.shadow.mapSize.width = 1024;
-  keyLight.shadow.mapSize.height = 1024;
+  keyLight.shadow.mapSize.width = 768;
+  keyLight.shadow.mapSize.height = 768;
   keyLight.shadow.camera.near = 0.5;
   keyLight.shadow.camera.far = 25;
   const d = 8;
