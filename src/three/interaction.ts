@@ -26,6 +26,18 @@ interface FallingPiece {
   targetY: number;
 }
 
+interface FlyingPiece {
+  piece: Piece;
+  startX: number;
+  startY: number;
+  startZ: number;
+  targetX: number;
+  targetY: number;
+  targetZ: number;
+  elapsed: number;
+  duration: number;
+}
+
 interface PlacementRecord {
   piece: Piece;
   col: number;
@@ -43,19 +55,21 @@ const PICKUP_TOLERANCE = PIECE_SIZE * 1.3;
 
 // While dragging, the effective aim point is shifted this many CSS pixels above the actual
 // finger — on a phone your fingertip sits right on top of the cell you're trying to hit, so
-// aiming "through" the finger is unreliable. Shifting the aim point (and therefore the piece
-// and the target-cell highlight, since both are driven by the same point) up and clear of the
-// finger means what you see is what you get, instead of guessing at a hidden target.
+// aiming "through" the finger is unreliable. Shifting the aim point (and therefore the piece,
+// since it's driven by this same point) up and clear of the finger means what you see is what
+// you get, instead of guessing at a hidden target.
 const DRAG_SCREEN_OFFSET_PX = 100;
 
 // Held noticeably larger than its resting size, on top of the screen-space offset above, so the
 // piece itself is unambiguous while airborne.
 const DRAG_SCALE = 1.6;
 
-export interface DragCandidate {
-  col: number;
-  row: number;
-  legal: boolean;
+// A returning piece (illegal drop, or undo) flies to its tray spot instead of teleporting there.
+const FLY_DURATION = 0.42;
+const FLY_ARC_HEIGHT = 0.85;
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
 }
 
 export interface Interaction {
@@ -71,12 +85,12 @@ export function setupInteraction(
   trays: Tray[],
   state: GameState,
   onChange: () => void,
-  getHumanOwner: () => PieceOwner | null,
-  onDragUpdate: (candidate: DragCandidate | null) => void = () => {}
+  getHumanOwner: () => PieceOwner | null
 ): Interaction {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const falling: FallingPiece[] = [];
+  const flying: FlyingPiece[] = [];
   const history: PlacementRecord[] = [];
 
   let dragging: { piece: Piece; tray: Tray } | null = null;
@@ -135,19 +149,29 @@ export function setupInteraction(
     falling.push({ piece, velocityY: 0, targetY });
   }
 
+  function flyToTray(piece: Piece, target: { x: number; y: number; z: number }) {
+    flying.push({
+      piece,
+      startX: piece.mesh.position.x,
+      startY: piece.mesh.position.y,
+      startZ: piece.mesh.position.z,
+      targetX: target.x,
+      targetY: target.y,
+      targetZ: target.z,
+      elapsed: 0,
+      duration: FLY_DURATION,
+    });
+  }
+
   function returnToTray(piece: Piece, tray: Tray) {
-    piece.mesh.castShadow = true;
     piece.mesh.scale.setScalar(1);
     const layer = Math.floor(tray.pieces.length / TRAY_PIECES_PER_LAYER);
     const spot = randomTraySpot(tray.origin, layer);
-    piece.mesh.position.x = spot.x;
-    piece.mesh.position.z = spot.z;
     tray.pieces.push(piece);
-    dropInto(piece, spot.y);
+    flyToTray(piece, spot);
   }
 
   function commitPlacement(piece: Piece, col: number, row: number) {
-    piece.mesh.castShadow = true;
     piece.mesh.scale.setScalar(1);
     const world = cellToWorld(col, row);
     piece.mesh.position.x = world.x;
@@ -177,10 +201,6 @@ export function setupInteraction(
     dragging = { piece, tray };
     piece.mesh.position.y = DRAG_HEIGHT;
     piece.mesh.scale.setScalar(DRAG_SCALE);
-    // No cast shadow while airborne — the live gold/red cell highlight is the authoritative
-    // "where will this land" indicator; a real cast shadow at this height would drift away from
-    // it (light isn't perfectly vertical) and read as a second, conflicting target.
-    piece.mesh.castShadow = false;
     playPickup();
   }
 
@@ -192,8 +212,6 @@ export function setupInteraction(
     if (raycaster.ray.intersectPlane(dragPlane, point)) {
       dragging.piece.mesh.position.x = point.x;
       dragging.piece.mesh.position.z = point.z;
-      const { col, row } = worldToCell(point.x, point.z);
-      onDragUpdate({ col, row, legal: isLegalMove(state, col, row) });
     }
   }
 
@@ -201,7 +219,6 @@ export function setupInteraction(
     if (!dragging) return;
     const { piece, tray } = dragging;
     dragging = null;
-    onDragUpdate(null);
 
     const { x, z } = piece.mesh.position;
     const { col, row } = worldToCell(x, z);
@@ -228,7 +245,7 @@ export function setupInteraction(
   /** Returns whether anything actually moved this frame — used to decide whether the shadow
    *  map needs recomputing (see scene.ts: it's frozen by default for performance). */
   function update(delta: number): boolean {
-    const wasActive = falling.length > 0 || dragging !== null;
+    const wasActive = falling.length > 0 || flying.length > 0 || dragging !== null;
 
     for (let i = falling.length - 1; i >= 0; i--) {
       const fp = falling[i];
@@ -247,7 +264,24 @@ export function setupInteraction(
       }
     }
 
-    return wasActive || falling.length > 0 || dragging !== null;
+    for (let i = flying.length - 1; i >= 0; i--) {
+      const fp = flying[i];
+      fp.elapsed += delta;
+      const t = Math.min(fp.elapsed / fp.duration, 1);
+      const eased = easeOutCubic(t);
+
+      fp.piece.mesh.position.x = fp.startX + (fp.targetX - fp.startX) * eased;
+      fp.piece.mesh.position.z = fp.startZ + (fp.targetZ - fp.startZ) * eased;
+      const arc = Math.sin(t * Math.PI) * FLY_ARC_HEIGHT;
+      fp.piece.mesh.position.y = fp.startY + (fp.targetY - fp.startY) * eased + arc;
+
+      if (t >= 1) {
+        fp.piece.mesh.position.set(fp.targetX, fp.targetY, fp.targetZ);
+        flying.splice(i, 1);
+      }
+    }
+
+    return wasActive || falling.length > 0 || flying.length > 0 || dragging !== null;
   }
 
   function placeForOwner(tray: Tray, col: number, row: number): boolean {
@@ -279,10 +313,8 @@ export function setupInteraction(
     if (tray) {
       const layer = Math.floor(tray.pieces.length / TRAY_PIECES_PER_LAYER);
       const spot = randomTraySpot(tray.origin, layer);
-      piece.mesh.position.x = spot.x;
-      piece.mesh.position.z = spot.z;
       tray.pieces.push(piece);
-      dropInto(piece, spot.y);
+      flyToTray(piece, spot);
     }
     return true;
   }
