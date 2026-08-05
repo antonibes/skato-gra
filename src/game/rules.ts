@@ -1,4 +1,4 @@
-import { BOARD_SIZE } from "../three/config";
+import { BOARD_SIZE, PIECE_COUNT } from "../three/config";
 import type { PieceOwner } from "../three/pieces";
 
 export type Cell = PieceOwner | null;
@@ -157,6 +157,19 @@ export function applyMove(state: GameState, owner: PieceOwner, col: number, row:
     state.endReason = "five-in-row";
     state.endTriggeredBy = owner;
     state.winningLine = winningLine;
+
+    // An early win via 5-in-a-row always scores as a full win (32) for the winner; the loser
+    // still banks credit for every tile they actually got down, not just their scoring groups —
+    // rewards a long fight even in a loss.
+    const opponent: PieceOwner = owner === "green" ? "blue" : "green";
+    let opponentPlaced = 0;
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        if (state.board[r][c] === opponent) opponentPlaced++;
+      }
+    }
+    state.scores[owner] = PIECE_COUNT;
+    state.scores[opponent] = opponentPlaced;
   } else if (boardFull) {
     state.over = true;
     state.winner =

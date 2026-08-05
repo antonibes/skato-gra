@@ -221,7 +221,7 @@
               <div class="rules-card">
                 <span class="rules-title">ZASADY GRY</span>
                 <p class="rules-text">
-                  1. Gra rozgrywana jest na planszy 9x9.<br>
+                  1. Gra rozgrywana jest na planszy 8x8.<br>
                   2. Gracze stawiają na zmianę swoje pionki.<br>
                   3. **Zasada przylegania:** Nowy pionek musi stykać się bokiem (nie na ukos) z dowolnym już leżącym pionkiem (oprócz pierwszego ruchu).<br>
                   4. **Punktacja:** Punkty otrzymuje się za połączone grupy własnych pionków o rozmiarze **co najmniej 5**. Sumuje się rozmiary wszystkich takich grup.<br>
@@ -384,6 +384,7 @@
           <span class="player-chip player-chip--a"></span>
           <span class="player-score" id="score-blue">0</span>
         </div>
+        <div class="hud-timer" id="hud-timer">00:00</div>
         <div class="hud-player hud-player--green" id="hud-green">
           <span class="player-chip player-chip--b"></span>
           <span class="player-score" id="score-green">0</span>
@@ -396,7 +397,8 @@
           <div class="result-badge" id="result-badge">Wynik</div>
           <span class="result-title" id="result-title">Koniec gry</span>
           <span class="result-reason" id="result-reason"></span>
-          
+          <span class="result-time" id="result-time"></span>
+
           <div class="result-score-container">
             <div class="result-score-box result-score-box--green">
               <span class="result-score-label">Zielony (Szmaragd)</span>

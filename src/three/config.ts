@@ -14,7 +14,9 @@ export const TRAY_FLOOR_Y = 0.02;
 export const TRAY_PIECES_PER_LAYER = 20;
 export const TRAY_BOARD_MARGIN = 1.3;
 
-export const DRAG_HEIGHT = 1.3;
+// Held noticeably above the board while dragging, so a finger near the piece doesn't cover
+// the target cell and there's a clear, unambiguous gap between "held" and "landing" height.
+export const DRAG_HEIGHT = 2.2;
 export const GRAVITY = -16;
 export const BOUNCE_DAMPING = 0.32;
 export const MIN_BOUNCE_SPEED = 0.55;

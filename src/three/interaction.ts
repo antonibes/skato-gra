@@ -116,6 +116,7 @@ export function setupInteraction(
   }
 
   function returnToTray(piece: Piece, tray: Tray) {
+    piece.mesh.castShadow = true;
     const layer = Math.floor(tray.pieces.length / TRAY_PIECES_PER_LAYER);
     const spot = randomTraySpot(tray.origin, layer);
     piece.mesh.position.x = spot.x;
@@ -125,6 +126,7 @@ export function setupInteraction(
   }
 
   function commitPlacement(piece: Piece, col: number, row: number) {
+    piece.mesh.castShadow = true;
     const world = cellToWorld(col, row);
     piece.mesh.position.x = world.x;
     piece.mesh.position.z = world.z;
@@ -151,6 +153,10 @@ export function setupInteraction(
     tray.pieces.splice(tray.pieces.indexOf(piece), 1);
     dragging = { piece, tray };
     piece.mesh.position.y = DRAG_HEIGHT;
+    // No cast shadow while airborne — the live gold/red cell highlight is the authoritative
+    // "where will this land" indicator; a real cast shadow at this height would drift away from
+    // it (light isn't perfectly vertical) and read as a second, conflicting target.
+    piece.mesh.castShadow = false;
     playPickup();
   }
 

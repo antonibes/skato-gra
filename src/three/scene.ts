@@ -29,9 +29,12 @@ export function createSceneRig(canvas: HTMLCanvasElement): SceneRig {
   // Soft ambient light for general base visibility
   const ambient = new THREE.AmbientLight(0xffffff, 0.45);
 
-  // Warm, powerful key light casting high-quality soft shadows
+  // Warm, powerful key light casting high-quality soft shadows. Kept close to directly overhead
+  // (small X/Z offset) so a piece's cast shadow lands almost straight beneath it — a piece held
+  // up while dragging needs its shadow to land where it will actually be dropped, not offset
+  // sideways by a steep light angle.
   const keyLight = new THREE.DirectionalLight(0xffeed9, 1.45);
-  keyLight.position.set(5, 12, 6);
+  keyLight.position.set(1.5, 15, 2.5);
   keyLight.castShadow = true;
   keyLight.shadow.mapSize.width = 1024;
   keyLight.shadow.mapSize.height = 1024;

@@ -56,6 +56,8 @@ const resultScoreGreen = document.getElementById("result-score-green")!;
 const resultScoreBlue = document.getElementById("result-score-blue")!;
 const resultCalcGreen = document.getElementById("result-calc-green")!;
 const resultCalcBlue = document.getElementById("result-calc-blue")!;
+const resultTime = document.getElementById("result-time")!;
+const hudTimer = document.getElementById("hud-timer")!;
 const restartButton = document.getElementById("restart-button")!;
 
 const { renderer, scene, camera } = createSceneRig(canvas);
@@ -333,6 +335,26 @@ function formatScoreCalc(groups: number[]): string {
   return `${scoring.join(" + ")} = ${sum} pkt`;
 }
 
+/** For an early win the winner's score is forced to the full 32 and the loser's to their raw
+ *  placed-piece count (see rules.ts) — the group breakdown no longer matches those numbers, so
+ *  show what actually happened instead of a stale "9 + 6 = 15 pkt" next to a displayed 32. */
+function calcTextFor(owner: PieceOwner): string {
+  if (state.endReason === "five-in-row") {
+    if (owner === state.winner) return "Automatyczna wygrana — pełne 32 pkt";
+    return `Ułożone pionki: ${state.scores[owner]} szt.`;
+  }
+  return formatScoreCalc(getPlayerGroups(state.board, owner));
+}
+
+let matchStartTime: number | null = null;
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 function refreshHud() {
   scoreBlue.textContent = String(state.scores.blue);
   scoreGreen.textContent = String(state.scores.green);
@@ -342,16 +364,16 @@ function refreshHud() {
   if (state.over) {
     resultTitle.textContent = outcomeLabel();
     resultReason.textContent = reasonLabel();
+    resultTime.textContent =
+      matchStartTime !== null ? `Czas rozgrywki: ${formatDuration(performance.now() - matchStartTime)}` : "";
 
     // Set score values
     resultScoreGreen.textContent = String(state.scores.green);
     resultScoreBlue.textContent = String(state.scores.blue);
 
-    // Set group calculation breakdowns
-    const greenGroups = getPlayerGroups(state.board, "green");
-    const blueGroups = getPlayerGroups(state.board, "blue");
-    resultCalcGreen.textContent = formatScoreCalc(greenGroups);
-    resultCalcBlue.textContent = formatScoreCalc(blueGroups);
+    // Set group calculation breakdowns (or early-win explanation)
+    resultCalcGreen.textContent = calcTextFor("green");
+    resultCalcBlue.textContent = calcTextFor("blue");
 
     // Setup result badge
     resultBadge.className = "result-badge";
@@ -479,6 +501,7 @@ function startGame() {
   const to = gamePose(camera);
   animateCameraTo(camera, from, to, 1800, () => {
     hud.classList.remove("hidden");
+    matchStartTime = performance.now();
     refreshHud();
   });
 }
@@ -785,6 +808,10 @@ function tick() {
     for (const ring of highlightRings) {
       (ring.material as THREE.MeshBasicMaterial).opacity = pulse;
     }
+  }
+
+  if (matchStartTime !== null && !state.over) {
+    hudTimer.textContent = formatDuration(performance.now() - matchStartTime);
   }
 
   renderer.render(scene, camera);

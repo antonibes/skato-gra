@@ -227,7 +227,8 @@ export function createScatteredPieces(
     const layer = Math.floor(i / TRAY_PIECES_PER_LAYER);
     const spot = randomTraySpot(origin, layer);
     piece.mesh.position.set(spot.x, spot.y, spot.z);
-    piece.mesh.rotation.y = Math.random() * Math.PI * 2;
+    // Kept axis-aligned (no random spin) — a rotated square casts a diamond-shaped shadow that's
+    // much harder to line up with a grid cell than a straight square-on-square drop.
     pieces.push(piece);
   }
   return pieces;

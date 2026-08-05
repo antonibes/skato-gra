@@ -358,6 +358,13 @@ export function chooseBotMove(state: GameState, botOwner: PieceOwner, difficulty
   }
 
   if (difficulty === "easy") {
+    // Fully random play never blocks an obvious win, which makes the bot feel broken rather
+    // than "easy" — even a beginner notices and blocks an immediate 5-in-a-row. Give Easy just
+    // those two obvious instincts (take a free win, block a free loss); everything else is random.
+    const winningMove = allMoves.find((m) => makesFiveInRow(sim.board, botOwner, m.col, m.row));
+    if (winningMove) return winningMove;
+    const blockingMove = allMoves.find((m) => makesFiveInRow(sim.board, opponent, m.col, m.row));
+    if (blockingMove) return blockingMove;
     return allMoves[Math.floor(Math.random() * allMoves.length)];
   }
 

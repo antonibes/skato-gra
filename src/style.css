@@ -1025,6 +1025,30 @@ body {
   max-width: 90%;
 }
 
+.result-time {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  opacity: 0.8;
+}
+
+.hud-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: rgba(18, 19, 22, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-main);
+}
+
 .result-score-container {
   display: flex;
   align-items: center;
