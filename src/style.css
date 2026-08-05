@@ -957,8 +957,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 11, 13, 0.85);
-  backdrop-filter: blur(8px);
+  /* Kept light — the point is to still see the finished board (and the winning-line highlight
+     on it) behind the result card, not hide it under a near-opaque scrim. */
+  background: rgba(10, 11, 13, 0.28);
+  backdrop-filter: blur(1.5px);
   transition: opacity 0.4s ease;
   z-index: 1000;
 }
