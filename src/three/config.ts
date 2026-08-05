@@ -14,10 +14,10 @@ export const TRAY_FLOOR_Y = 0.02;
 export const TRAY_PIECES_PER_LAYER = 20;
 export const TRAY_BOARD_MARGIN = 1.3;
 
-// Held above the board while dragging. Visibility no longer depends on this being tall — the
-// screen-space aim offset (see interaction.ts) handles that — so this stays closer to the board
-// for a more grounded feel.
-export const DRAG_HEIGHT = 1.4;
+// Held above the board while dragging. Visibility doesn't depend on this being tall — the
+// screen-space aim offset (see interaction.ts) handles that — so it can sit very close to the
+// board surface for a grounded, "sliding just above the grid" feel.
+export const DRAG_HEIGHT = 0.7;
 export const GRAVITY = -16;
 export const BOUNCE_DAMPING = 0.32;
 export const MIN_BOUNCE_SPEED = 0.55;

@@ -300,8 +300,12 @@ function maybeTriggerBot() {
   botThinking = true;
   setTimeout(() => {
     const move = chooseBotMove(state, botConfig!.owner, botConfig!.difficulty);
-    interaction.placeForOwner(trayFor(botConfig!.owner), move.col, move.row);
+    // Reset before placing: placeForOwner triggers a nested refreshHud() call (via onChange),
+    // and that call needs to see botThinking already false, or the undo button (gated on
+    // !botThinking) evaluates itself hidden right when the bot moves and never gets a later
+    // refreshHud() call to correct itself — it would just stay stuck hidden.
     botThinking = false;
+    interaction.placeForOwner(trayFor(botConfig!.owner), move.col, move.row);
   }, 550);
 }
 

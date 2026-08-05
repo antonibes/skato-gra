@@ -72,10 +72,14 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  width: min(85vw, 340px);
-  height: 590px; /* Locked height for standard viewport aspect ratio */
-  max-height: 90vh;
-  padding: 32px 24px 0 24px; /* Space for scrollable content and navigation bar */
+  /* Both dimensions scale down on smaller/shorter phones instead of a fixed height that can
+     overflow a short viewport (address bar, smaller device, etc.) — min() picks whichever is
+     smaller so it never exceeds what's actually available. */
+  width: min(92vw, 380px);
+  height: min(590px, 86vh);
+  height: min(590px, 86dvh); /* dvh accounts for mobile browser chrome; ignored where unsupported */
+  max-height: 92vh;
+  padding: 24px 24px 0 24px; /* Space for scrollable content and navigation bar */
   border-radius: 18px;
   background: linear-gradient(165deg, var(--color-bg-panel), rgba(18, 14, 10, 0.95));
   backdrop-filter: blur(4px);
@@ -1069,9 +1073,12 @@ body {
 }
 
 .undo-button {
+  /* Anchored to the bottom, clear of the score/timer row at the top — it was overlapping the
+     score there before. */
   position: absolute;
-  top: max(24px, env(safe-area-inset-top));
-  left: max(16px, env(safe-area-inset-left));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 7px;
@@ -1095,13 +1102,13 @@ body {
 }
 
 .undo-button:active {
-  transform: scale(0.95);
+  transform: translateX(-50%) scale(0.95);
 }
 
 .undo-button.hidden {
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-8px);
+  transform: translateX(-50%) translateY(8px);
 }
 
 .result-score-container {
