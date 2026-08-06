@@ -1,6 +1,6 @@
 import { BOARD_SIZE } from "../three/config";
 import type { PieceOwner } from "../three/pieces";
-import { type Cell, type GameState, calculatePlayerScore } from "./rules";
+import { type Cell, type GameState } from "./rules";
 
 export type Difficulty = "easy" | "medium" | "hard" | "expert" | "master";
 
@@ -16,10 +16,10 @@ export const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard", "expert", "
 
 const MAX_DEPTH: Record<Difficulty, number> = {
   easy: 0,
-  medium: 4,
-  hard: 6,
-  expert: 8,
-  master: 12,
+  medium: 5,
+  hard: 8,
+  expert: 10,
+  master: 16,
 };
 
 const TIME_BUDGET_MS: Record<Difficulty, number> = {
@@ -30,12 +30,26 @@ const TIME_BUDGET_MS: Record<Difficulty, number> = {
   master: 1200,
 };
 
+// Width of the move list considered at the root — kept generous so the bot's actual choice of
+// move is picked from a good pool of candidates.
 const CANDIDATE_CAP: Record<Difficulty, number> = {
   easy: BOARD_SIZE * BOARD_SIZE,
   medium: 12,
   hard: 16,
   expert: 24,
   master: 32,
+};
+
+// Width considered at every OTHER node in the tree. Move ordering already puts wins, blocks,
+// and the strongest-looking moves first, so nodes deep in the tree don't need the same breadth
+// as the root — narrowing them buys several extra plies of real search depth for the same node
+// budget, which matters far more for playing strength than evaluating a few more so-so replies.
+const INNER_CANDIDATE_CAP: Record<Difficulty, number> = {
+  easy: BOARD_SIZE * BOARD_SIZE,
+  medium: 8,
+  hard: 8,
+  expert: 8,
+  master: 8,
 };
 
 export interface Move {
@@ -51,15 +65,23 @@ interface SimState {
   current: PieceOwner;
   over: boolean;
   winner: SimOutcome;
+  pieceCount: number;
 }
 
 function fromGameState(state: GameState): SimState {
+  let pieceCount = 0;
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (state.board[r][c] !== null) pieceCount++;
+    }
+  }
   return {
     board: state.board.map((row) => row.slice()),
     scores: { ...state.scores },
     current: state.current,
     over: state.over,
     winner: state.winner,
+    pieceCount,
   };
 }
 
@@ -68,6 +90,13 @@ const DIRECTIONS = [
   [-1, 0],
   [0, 1],
   [0, -1],
+] as const;
+
+// One representative direction per axis — used where a signed pair of DIRECTIONS entries would
+// just duplicate the same bidirectional walk (e.g. run-length scans that already look both ways).
+const AXES = [
+  [1, 0],
+  [0, 1],
 ] as const;
 
 function countDirection(board: Cell[][], owner: PieceOwner, col: number, row: number, dc: number, dr: number): number {
@@ -89,19 +118,9 @@ function makesFiveInRow(board: Cell[][], owner: PieceOwner, col: number, row: nu
   return horizontal >= 5 || vertical >= 5;
 }
 
-function countPieces(board: Cell[][]): number {
-  let count = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (board[r][c] !== null) count++;
-    }
-  }
-  return count;
-}
-
 function legalMoves(sim: SimState): Move[] {
   const moves: Move[] = [];
-  const isFirstMoveOfGame = countPieces(sim.board) === 0;
+  const isFirstMoveOfGame = sim.pieceCount === 0;
 
   for (let row = 0; row < BOARD_SIZE; row++) {
     for (let col = 0; col < BOARD_SIZE; col++) {
@@ -121,22 +140,80 @@ function legalMoves(sim: SimState): Move[] {
   return moves;
 }
 
+// Local-flood-fill scratch buffers for incremental scoring in applySim. Separate from
+// evaluate()'s `visited`/`queue` since both can be mid-use within the same call stack
+// (evaluate() runs at leaves, applySim() runs on every edge on the way there).
+const localMark = new Uint8Array(64);
+const localQueue = new Uint8Array(64);
+
+function floodFillMark(board: Cell[][], owner: PieceOwner, col: number, row: number, mark: Uint8Array): number {
+  let size = 0;
+  let qHead = 0;
+  let qTail = 0;
+  const startIdx = col + row * BOARD_SIZE;
+  mark[startIdx] = 1;
+  localQueue[qTail++] = startIdx;
+
+  while (qHead < qTail) {
+    const idx = localQueue[qHead++];
+    const r = (idx / BOARD_SIZE) | 0;
+    const c = idx % BOARD_SIZE;
+    size++;
+
+    for (const [dc, dr] of DIRECTIONS) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+        const nIdx = nc + nr * BOARD_SIZE;
+        if (board[nr][nc] === owner && !mark[nIdx]) {
+          mark[nIdx] = 1;
+          localQueue[qTail++] = nIdx;
+        }
+      }
+    }
+  }
+  return size;
+}
+
+// Placing one piece can only change the groups touching it — either extending one or merging
+// several. Rather than re-scanning the whole board (calculatePlayerScore), flood-fill just the
+// (small, near the frontier) groups that are actually affected: sum what the touched neighbor
+// groups used to contribute on the old board, then flood-fill the single merged group on the
+// new board, and patch the total score by the difference. Falls back to nothing extra needed
+// for the opponent, whose groups are untouched by owner's move.
+function incrementalOwnerScore(oldBoard: Cell[][], newBoard: Cell[][], owner: PieceOwner, col: number, row: number, priorScore: number): number {
+  localMark.fill(0);
+  let oldContribution = 0;
+  for (const [dc, dr] of DIRECTIONS) {
+    const nc = col + dc;
+    const nr = row + dr;
+    if (nc < 0 || nc >= BOARD_SIZE || nr < 0 || nr >= BOARD_SIZE) continue;
+    if (oldBoard[nr][nc] !== owner) continue;
+    const idx = nc + nr * BOARD_SIZE;
+    if (localMark[idx]) continue;
+    const size = floodFillMark(oldBoard, owner, nc, nr, localMark);
+    if (size >= 5) oldContribution += size;
+  }
+
+  localMark.fill(0);
+  const newSize = floodFillMark(newBoard, owner, col, row, localMark);
+  const newContribution = newSize >= 5 ? newSize : 0;
+
+  return priorScore - oldContribution + newContribution;
+}
+
 function applySim(sim: SimState, owner: PieceOwner, move: Move): SimState {
   const board = sim.board.map((row) => row.slice());
   board[move.row][move.col] = owner;
-  
-  const scores = {
-    green: calculatePlayerScore(board, "green"),
-    blue: calculatePlayerScore(board, "blue")
-  };
 
-  let totalPieces = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (board[r][c] !== null) totalPieces++;
-    }
-  }
-  const full = totalPieces === BOARD_SIZE * BOARD_SIZE;
+  // Only `owner` gained a piece, so the opponent's groups (and score) are untouched.
+  const scores = {
+    ...sim.scores,
+    [owner]: incrementalOwnerScore(sim.board, board, owner, move.col, move.row, sim.scores[owner]),
+  } as { green: number; blue: number };
+
+  const pieceCount = sim.pieceCount + 1;
+  const full = pieceCount === BOARD_SIZE * BOARD_SIZE;
   const madeFive = makesFiveInRow(board, owner, move.col, move.row);
 
   let over = sim.over;
@@ -153,7 +230,7 @@ function applySim(sim: SimState, owner: PieceOwner, move: Move): SimState {
     current = owner === "green" ? "blue" : "green";
   }
 
-  return { board, scores, over, winner, current };
+  return { board, scores, over, winner, current, pieceCount };
 }
 
 function evaluateCandidateMove(sim: SimState, owner: PieceOwner, move: Move): number {
@@ -170,18 +247,24 @@ function evaluateCandidateMove(sim: SimState, owner: PieceOwner, move: Move): nu
   }
   
   let score = 0;
-  
-  // 3. Reward building our own runs / blocking opponent runs
-  for (const [dc, dr] of DIRECTIONS) {
+
+  // 3. Reward building our own runs / blocking opponent runs. This is the signal that matters
+  // most in a five-in-a-row game — a plain adjacency count ranks a clumped-but-static move above
+  // a move that advances a run one step from winning, which starves deep search (which leans on
+  // this ordering heavily) of exactly the candidates it most needs to see. DIRECTIONS has both
+  // signed entries per axis ([1,0]/[-1,0] and [0,1]/[0,-1]); countDirection is already called for
+  // both signs within a single iteration below, so only two of the four entries need visiting to
+  // cover both axes — the other two would just repeat the same two runs.
+  for (const [dc, dr] of AXES) {
     const ourRun = countDirection(sim.board, owner, move.col + dc, move.row + dr, dc, dr) +
                     countDirection(sim.board, owner, move.col - dc, move.row - dr, -dc, -dr);
     const oppRun = countDirection(sim.board, opponent, move.col + dc, move.row + dr, dc, dr) +
                     countDirection(sim.board, opponent, move.col - dc, move.row - dr, -dc, -dr);
-                    
+
     score += ourRun * 12;
     score += oppRun * 10;
   }
-  
+
   // 4. Center bias
   const center = 3.5;
   const dist = Math.abs(move.col - center) + Math.abs(move.row - center);
@@ -198,36 +281,6 @@ function orderedCandidates(sim: SimState, owner: PieceOwner, cap: number): Move[
 
 const TERMINAL_WIN_VALUE = 1_000_000;
 
-function longestRun(board: Cell[][], owner: PieceOwner): number {
-  let best = 0;
-  for (let row = 0; row < BOARD_SIZE; row++) {
-    for (let col = 0; col < BOARD_SIZE; col++) {
-      if (board[row][col] !== owner) continue;
-
-      if (col === 0 || board[row][col - 1] !== owner) {
-        let len = 0;
-        let c = col;
-        while (c < BOARD_SIZE && board[row][c] === owner) {
-          len++;
-          c++;
-        }
-        if (len > best) best = len;
-      }
-
-      if (row === 0 || board[row - 1][col] !== owner) {
-        let len = 0;
-        let r = row;
-        while (r < BOARD_SIZE && board[r][col] === owner) {
-          len++;
-          r++;
-        }
-        if (len > best) best = len;
-      }
-    }
-  }
-  return best;
-}
-
 // Flat pre-allocated typed arrays to eliminate garbage collection frame stutter/lags
 const visited = new Uint8Array(64);
 const queue = new Uint8Array(64);
@@ -240,74 +293,96 @@ function evaluate(sim: SimState, botOwner: PieceOwner, opponent: PieceOwner): nu
   }
 
   const actualScoreDiff = sim.scores[botOwner] - sim.scores[opponent];
-  
+
   let botGroupPotential = 0;
   let opponentGroupPotential = 0;
-  
+  let botLongestRun = 0;
+  let opponentLongestRun = 0;
+  let positional = 0;
+  const center = 3.5;
+
   visited.fill(0);
 
+  // Single pass over the board: group-flood-fill potential, positional bias, and longest-run
+  // are all derived from the same per-cell scan instead of four separate full-board loops.
   for (let r = 0; r < BOARD_SIZE; r++) {
     for (let c = 0; c < BOARD_SIZE; c++) {
       const cell = sim.board[r][c];
+      if (cell === null) continue;
+
+      const dist = Math.abs(r - center) + Math.abs(c - center);
+      const bonus = (8 - dist) * 0.15;
+      positional += cell === botOwner ? bonus : -bonus;
+
+      if (c === 0 || sim.board[r][c - 1] !== cell) {
+        let len = 0;
+        let cc = c;
+        while (cc < BOARD_SIZE && sim.board[r][cc] === cell) {
+          len++;
+          cc++;
+        }
+        if (cell === botOwner) {
+          if (len > botLongestRun) botLongestRun = len;
+        } else if (len > opponentLongestRun) opponentLongestRun = len;
+      }
+
+      if (r === 0 || sim.board[r - 1][c] !== cell) {
+        let len = 0;
+        let rr = r;
+        while (rr < BOARD_SIZE && sim.board[rr][c] === cell) {
+          len++;
+          rr++;
+        }
+        if (cell === botOwner) {
+          if (len > botLongestRun) botLongestRun = len;
+        } else if (len > opponentLongestRun) opponentLongestRun = len;
+      }
+
       const idx = c + r * BOARD_SIZE;
-      if (cell !== null && visited[idx] === 0) {
-        let size = 0;
-        
-        let qHead = 0;
-        let qTail = 0;
-        queue[qTail++] = idx;
-        visited[idx] = 1;
-        
-        while (qHead < qTail) {
-          const currIdx = queue[qHead++];
-          const currR = Math.floor(currIdx / BOARD_SIZE);
-          const currC = currIdx % BOARD_SIZE;
-          size++;
-          
-          for (const [dc, dr] of DIRECTIONS) {
-            const nr = currR + dr;
-            const nc = currC + dc;
-            if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
-              const nIdx = nc + nr * BOARD_SIZE;
-              if (sim.board[nr][nc] === cell && visited[nIdx] === 0) {
-                visited[nIdx] = 1;
-                queue[qTail++] = nIdx;
-              }
+      if (visited[idx] !== 0) continue;
+
+      let size = 0;
+      let qHead = 0;
+      let qTail = 0;
+      queue[qTail++] = idx;
+      visited[idx] = 1;
+
+      while (qHead < qTail) {
+        const currIdx = queue[qHead++];
+        const currR = Math.floor(currIdx / BOARD_SIZE);
+        const currC = currIdx % BOARD_SIZE;
+        size++;
+
+        for (const [dc, dr] of DIRECTIONS) {
+          const nr = currR + dr;
+          const nc = currC + dc;
+          if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+            const nIdx = nc + nr * BOARD_SIZE;
+            if (sim.board[nr][nc] === cell && visited[nIdx] === 0) {
+              visited[nIdx] = 1;
+              queue[qTail++] = nIdx;
             }
           }
         }
-        
-        let potential = 0;
-        if (size === 1) potential = 0.2;
-        else if (size === 2) potential = 1.0;
-        else if (size === 3) potential = 3.0;
-        else if (size === 4) potential = 12.0;
-        else potential = size * 5.0;
-        
-        if (cell === botOwner) {
-          botGroupPotential += potential;
-        } else {
-          opponentGroupPotential += potential;
-        }
+      }
+
+      let potential = 0;
+      if (size === 1) potential = 0.2;
+      else if (size === 2) potential = 1.0;
+      else if (size === 3) potential = 3.0;
+      else if (size === 4) potential = 12.0;
+      else potential = size * 5.0;
+
+      if (cell === botOwner) {
+        botGroupPotential += potential;
+      } else {
+        opponentGroupPotential += potential;
       }
     }
   }
 
-  const center = 3.5;
-  let positional = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      const cell = sim.board[r][c];
-      if (cell !== null) {
-        const dist = Math.abs(r - center) + Math.abs(c - center);
-        const bonus = (8 - dist) * 0.15;
-        positional += cell === botOwner ? bonus : -bonus;
-      }
-    }
-  }
+  const runDiff = botLongestRun - opponentLongestRun;
 
-  const runDiff = longestRun(sim.board, botOwner) - longestRun(sim.board, opponent);
-  
   return actualScoreDiff * 150 + (botGroupPotential - opponentGroupPotential) * 15 + positional + runDiff * 60;
 }
 
@@ -369,6 +444,7 @@ export function chooseBotMove(state: GameState, botOwner: PieceOwner, difficulty
   }
 
   const cap = CANDIDATE_CAP[difficulty];
+  const innerCap = INNER_CANDIDATE_CAP[difficulty];
   const maxDepth = MAX_DEPTH[difficulty];
   const deadline = performance.now() + TIME_BUDGET_MS[difficulty];
   const rootCandidates = orderedCandidates(sim, botOwner, cap);
@@ -385,7 +461,7 @@ export function chooseBotMove(state: GameState, botOwner: PieceOwner, difficulty
     try {
       for (const move of rootCandidates) {
         const next = applySim(sim, botOwner, move);
-        const value = minimax(next, depth - 1, alpha, beta, botOwner, opponent, cap, deadline);
+        const value = minimax(next, depth - 1, alpha, beta, botOwner, opponent, innerCap, deadline);
         if (value > bestValue) {
           bestValue = value;
           depthBestMove = move;
