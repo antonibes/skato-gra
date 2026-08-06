@@ -60,6 +60,9 @@ const hudTimer = document.getElementById("hud-timer")!;
 const undoButton = document.getElementById("undo-button")!;
 const undoCountEl = document.getElementById("undo-count")!;
 const restartButton = document.getElementById("restart-button")!;
+const howtoScreen = document.getElementById("howto-screen")!;
+const openHowtoButton = document.getElementById("open-howto-button")!;
+const howtoCloseButton = document.getElementById("howto-close-button")!;
 
 const { renderer, scene, camera } = createSceneRig(canvas);
 
@@ -382,6 +385,13 @@ function refreshHud() {
   if (state.over) {
     animateCameraTo(camera, gamePose(camera), endPose(camera), 1400);
 
+    // The end-of-game camera frames just the board — hide the baskets (and whatever pieces
+    // are still sitting in them) so the overview reads as a clean finished board, not a shot
+    // that happens to catch the trays at its edges.
+    greenTrayMesh.visible = false;
+    blueTrayMesh.visible = false;
+    for (const piece of [...greenTray.pieces, ...blueTray.pieces]) piece.mesh.visible = false;
+
     resultTitle.textContent = outcomeLabel();
     resultReason.textContent = reasonLabel();
 
@@ -443,6 +453,7 @@ function refreshHud() {
 
       // Re-render nodes
       renderCampaignNodes();
+      updateHomeCampaignSummary();
     } else if (botConfig) {
       const humanOwner = botConfig.owner === "green" ? "blue" : "green";
       if (state.winner === humanOwner) {
@@ -641,26 +652,52 @@ onlineInfoBackButton.addEventListener("click", () => {
   onlineScreen.classList.remove("hidden");
 });
 
+const HOWTO_SEEN_KEY = "skato_seen_howto";
+
+function openHowto() {
+  menuScreen.classList.add("hidden");
+  howtoScreen.classList.remove("hidden");
+}
+
+function closeHowto() {
+  localStorage.setItem(HOWTO_SEEN_KEY, "1");
+  howtoScreen.classList.add("hidden");
+  menuScreen.classList.remove("hidden");
+}
+
+openHowtoButton.addEventListener("click", openHowto);
+howtoCloseButton.addEventListener("click", closeHowto);
+
+if (localStorage.getItem(HOWTO_SEEN_KEY) !== "1") {
+  openHowto();
+}
+
 // Bottom navigation tabs controller
 const navItems = document.querySelectorAll<HTMLButtonElement>(".nav-item");
 const tabViews = document.querySelectorAll<HTMLDivElement>(".lobby-tab-view");
 
+function switchTab(tabName: string) {
+  navItems.forEach((item) => item.classList.toggle("active", item.dataset.tab === tabName));
+  tabViews.forEach((view) => {
+    view.classList.toggle("active", view.id === `tab-${tabName}`);
+  });
+}
+
 navItems.forEach((btn) => {
   btn.addEventListener("click", () => {
-    const tabName = btn.dataset.tab;
-    if (!tabName) return;
-
-    navItems.forEach((item) => item.classList.toggle("active", item === btn));
-    tabViews.forEach((view) => {
-      view.classList.toggle("active", view.id === `tab-${tabName}`);
-    });
+    if (btn.dataset.tab) switchTab(btn.dataset.tab);
   });
 });
+
+const homeCampaignCard = document.getElementById("home-campaign-card");
+homeCampaignCard?.addEventListener("click", () => switchTab("campaign"));
 
 // ELO logic
 let playerElo = Number(localStorage.getItem("skato_player_elo") || "1000");
 const userEloVal = document.getElementById("user-elo-val")!;
 const userTierVal = document.getElementById("user-tier-val")!;
+const homeEloVal = document.getElementById("home-elo-val");
+const homeTierVal = document.getElementById("home-tier-val");
 
 function getTierName(elo: number): string {
   if (elo >= 1800) return "Wielki Arcymistrz";
@@ -674,6 +711,8 @@ function getTierName(elo: number): string {
 function updateEloDisplay() {
   if (userEloVal) userEloVal.textContent = `${playerElo} ELO`;
   if (userTierVal) userTierVal.textContent = getTierName(playerElo);
+  if (homeEloVal) homeEloVal.textContent = `${playerElo} ELO`;
+  if (homeTierVal) homeTierVal.textContent = getTierName(playerElo);
   const rankVal = document.getElementById("user-rank-val");
   if (rankVal) {
     if (playerElo >= 1800) rankVal.textContent = "1";
@@ -713,6 +752,20 @@ const campaignLevels: Record<number, CampaignLevel> = {
 
 let highestUnlockedLevel = Number(localStorage.getItem("skato_highest_level") || "1");
 let activeCampaignLevel: number | null = null;
+
+function zoneNameForLevel(level: number): string {
+  if (level <= 3) return "Kraina Drewna";
+  if (level <= 6) return "Kraina Kamienia";
+  return "Złote Miasto";
+}
+
+const homeCampaignVal = document.getElementById("home-campaign-val");
+const homeCampaignSub = document.querySelector("#home-campaign-card .home-stat-sub");
+
+function updateHomeCampaignSummary() {
+  if (homeCampaignVal) homeCampaignVal.textContent = `Poziom ${highestUnlockedLevel}`;
+  if (homeCampaignSub) homeCampaignSub.textContent = zoneNameForLevel(highestUnlockedLevel);
+}
 
 function renderCampaignNodes() {
   const nodes = document.querySelectorAll<HTMLButtonElement>(".level-node");
@@ -800,6 +853,7 @@ if (levelStartBtn) {
 
 updateEloDisplay();
 renderCampaignNodes();
+updateHomeCampaignSummary();
 
 const volumeValueLabel = document.getElementById("volume-value-label");
 

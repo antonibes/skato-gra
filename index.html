@@ -40,7 +40,20 @@
               <span class="logo-word">SKATO</span>
               <span class="logo-tagline">Logika. Strategia. Elegancja.</span>
             </div>
-            
+
+            <div class="home-stats">
+              <div class="home-stat-card">
+                <span class="home-stat-label">Ranking</span>
+                <span class="home-stat-value" id="home-elo-val">1000 ELO</span>
+                <span class="home-stat-sub" id="home-tier-val">Nowicjusz</span>
+              </div>
+              <div class="home-stat-card home-stat-card--campaign" id="home-campaign-card">
+                <span class="home-stat-label">Kariera</span>
+                <span class="home-stat-value" id="home-campaign-val">Poziom 1</span>
+                <span class="home-stat-sub">Kraina Drewna</span>
+              </div>
+            </div>
+
             <div class="menu-buttons">
               <!-- Reusing play-button and play-online-button to keep TS bindings intact -->
               <button id="play-button" class="btn-menu btn-menu--play" type="button">
@@ -227,15 +240,17 @@
               </div>
 
               <div class="rules-card">
-                <span class="rules-title">ZASADY GRY</span>
-                <p class="rules-text">
-                  1. Gra rozgrywana jest na planszy 8x8.<br>
-                  2. Gracze stawiają na zmianę swoje pionki.<br>
-                  3. **Zasada przylegania:** Nowy pionek musi stykać się bokiem (nie na ukos) z dowolnym już leżącym pionkiem (oprócz pierwszego ruchu).<br>
-                  4. **Punktacja:** Punkty otrzymuje się za połączone grupy własnych pionków o rozmiarze **co najmniej 5**. Sumuje się rozmiary wszystkich takich grup.<br>
-                  5. **Wygrana natychmiastowa:** Ułożenie 5 pionków w linii (poziomo lub pionowo) natychmiast wygrywa grę!<br>
-                  6. Gra kończy się, gdy plansza zostanie całkowicie zapełniona. Wygrywa gracz z większą liczbą punktów.
-                </p>
+                <div class="rules-card-header">
+                  <span class="rules-title">ZASADY GRY</span>
+                  <button id="open-howto-button" class="rules-howto-link" type="button">Pokaż na planszy →</button>
+                </div>
+                <ol class="rules-list">
+                  <li><span class="rule-num">1</span><span>Plansza 8×8 — gracze na zmianę stawiają swoje pionki.</span></li>
+                  <li><span class="rule-num">2</span><span><strong>Przyleganie:</strong> nowy pionek musi dotykać bokiem (nie na ukos) już leżącego pionka — poza pierwszym ruchem gry.</span></li>
+                  <li><span class="rule-num">3</span><span><strong>Punktacja:</strong> liczą się połączone grupy własnych pionków o rozmiarze co najmniej 5 — ich rozmiary się sumują.</span></li>
+                  <li><span class="rule-num">4</span><span><strong>Wygrana natychmiastowa:</strong> 5 pionków w linii, poziomo lub pionowo, kończy grę od razu.</span></li>
+                  <li><span class="rule-num">5</span><span><strong>Koniec gry:</strong> gdy plansza się zapełni, wygrywa gracz z wyższym wynikiem.</span></li>
+                </ol>
               </div>
             </div>
           </div>
@@ -377,6 +392,53 @@
         <div class="menu-buttons">
           <button id="level-start-btn" class="btn-menu btn-menu--play" type="button">ROZPOCZNIJ WALKĘ</button>
           <button id="level-cancel-btn" class="btn-menu btn-menu--settings" type="button">WSTECZ</button>
+        </div>
+      </section>
+
+      <!-- How-to-play modal: shown once automatically on first visit, reachable any time from
+           Settings → Zasady gry. Demonstrates the two rules that aren't obvious from text alone
+           (edge-adjacency, five-in-a-row) with small board diagrams instead of more paragraphs. -->
+      <section id="howto-screen" class="menu-screen hidden">
+        <div class="menu-logo">
+          <span class="logo-word" style="font-size: 26px;">JAK GRAĆ?</span>
+        </div>
+
+        <div class="howto-block">
+          <span class="howto-label">Gdzie możesz postawić pionek</span>
+          <div class="howto-diagrams">
+            <div class="howto-diagram">
+              <div class="rule-mini-grid">
+                <div class="rule-mini-cell"></div><div class="rule-mini-cell"></div><div class="rule-mini-cell"></div>
+                <div class="rule-mini-cell"><span class="rule-mini-piece green"></span></div><div class="rule-mini-cell rule-mini-cell--legal"></div><div class="rule-mini-cell"></div>
+                <div class="rule-mini-cell"></div><div class="rule-mini-cell"></div><div class="rule-mini-cell"></div>
+              </div>
+              <span class="howto-verdict howto-verdict--yes">TAK — styka się bokiem</span>
+            </div>
+            <div class="howto-diagram">
+              <div class="rule-mini-grid">
+                <div class="rule-mini-cell rule-mini-cell--illegal"></div><div class="rule-mini-cell"></div><div class="rule-mini-cell"></div>
+                <div class="rule-mini-cell"></div><div class="rule-mini-cell"><span class="rule-mini-piece green"></span></div><div class="rule-mini-cell"></div>
+                <div class="rule-mini-cell"></div><div class="rule-mini-cell"></div><div class="rule-mini-cell"></div>
+              </div>
+              <span class="howto-verdict howto-verdict--no">NIE — dotyka tylko rogiem</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="howto-block">
+          <span class="howto-label">5 w rzędzie = natychmiastowa wygrana</span>
+          <div class="rule-mini-row">
+            <span class="rule-mini-piece blue"></span><span class="rule-mini-piece blue"></span><span class="rule-mini-piece blue"></span><span class="rule-mini-piece blue"></span><span class="rule-mini-piece blue"></span>
+          </div>
+        </div>
+
+        <div class="howto-block">
+          <span class="howto-label">Inaczej liczy się wynik</span>
+          <p class="howto-text">Gdy plansza się zapełni bez takiej linii, punkty dają połączone grupy Twoich pionków o rozmiarze co najmniej 5 — wygrywa wyższy wynik.</p>
+        </div>
+
+        <div class="menu-buttons">
+          <button id="howto-close-button" class="btn-menu btn-menu--play" type="button">ROZUMIEM, GRAM!</button>
         </div>
       </section>
 

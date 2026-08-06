@@ -26,16 +26,19 @@ const MENU_FORWARD_BIAS = 0.5;
 const GAME_ELEVATION_DEG = 20;
 const GAME_FORWARD_BIAS = 1.8;
 
-// A near-top-down "2D map" overview shown once the game ends, so the whole finished board
-// (and the winning-line highlight) reads at a glance without the result card needing to
-// overlap it. Kept a few degrees off true vertical (0°) since camera.lookAt's internal
-// up-vector math gets numerically unstable exactly at vertical — 16° reads as flat/overhead
-// while staying well clear of that degeneracy.
-const END_ELEVATION_DEG = 16;
-const END_FORWARD_BIAS = 0.9;
-// Extra framing margin for the end pose only: the board needs to sit in the upper portion of
-// the screen, clear of the result card anchored at the bottom, not fill the whole viewport.
-const END_FIT_HALF_WIDTH = FIT_HALF_WIDTH * 1.3;
+// A near-top-down "2D map" overview shown once the game ends. 10° is close to true vertical
+// (0°) without hitting it — much closer to it and camera.lookAt's internal up-vector math gets
+// numerically unstable. This is also the elevation that best fills a tall phone screen: for a
+// SQUARE board, the achievable vertical fill is capped at roughly the screen's own aspect ratio
+// no matter the zoom level (fitting the board's width to a narrow portrait FOV always leaves
+// the taller vertical FOV under-filled by that same ratio) — and that cap is highest right at
+// true top-down, since any added tilt only shrinks it further through foreshortening.
+const END_ELEVATION_DEG = 10;
+const END_FORWARD_BIAS = 0;
+// Tight fit, not the wide menu-spin margin: baskets are hidden outright when the result screen
+// shows (see main.ts), so this only needs to frame the board+frame itself, snugly, with a hair
+// of breathing room short of the true edge (verified against the projected frame corners).
+const END_FIT_HALF_WIDTH = FIT_HALF_WIDTH * 0.93;
 
 /** Distance from the board center a camera with this fov/aspect needs, so the
  *  full board fits inside the frustum. Prevents extreme zooming on wide screens. */

@@ -98,6 +98,30 @@ body {
   pointer-events: none;
 }
 
+/* The home lobby (#menu-screen) is the one screen with a bottom nav bar, and a bottom nav
+   bar styled like a native app's tab bar only reads correctly pinned to the true screen edge —
+   floating it inside a centered card (like the other, simpler modal screens below) left visible
+   table/board behind it and made the bar look unfinished. Full-bleed edge-to-edge instead, ID
+   selector so it doesn't affect the shared .menu-screen modals (mode/bot-setup/online/etc). */
+#menu-screen {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: none;
+  transform-origin: center;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  border-radius: 0;
+  padding: max(20px, env(safe-area-inset-top)) 0 0 0;
+  background: linear-gradient(175deg, var(--color-bg-panel), rgba(12, 9, 6, 0.97));
+}
+
+#menu-screen.hidden {
+  transform: scale(0.97);
+}
+
 /* Non-card modals (like mode setup & level setup) */
 #mode-screen,
 #bot-setup-screen,
@@ -209,10 +233,78 @@ body {
   color: var(--color-text-muted);
 }
 
+/* Quick-glance player status on the home tab — real progress (ELO/tier, campaign), not filler,
+   so the extra room from going edge-to-edge reads as "your profile" rather than empty air. */
+.home-stats {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 360px;
+  margin: 4px 0;
+}
+
+.home-stat-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 14px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border-subtle);
+  cursor: default;
+}
+
+.home-stat-card--campaign {
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.home-stat-card--campaign:hover {
+  border-color: var(--color-border-active);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.home-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.home-stat-value {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.home-stat-sub {
+  font-size: 11px;
+  color: var(--color-gold-soft);
+}
+
+/* The home tab is now full-height (see #menu-screen), so its content should sit as one
+   centered group rather than the logo pinned to the top and the buttons pinned to the bottom
+   with a large dead gap between them — the fix that made the nav bar reach the true screen
+   edge would otherwise just relocate the "empty" complaint into the middle of the screen. */
+#tab-play {
+  justify-content: center;
+  gap: 32px;
+}
+
+#tab-play .menu-buttons {
+  margin-top: 0;
+}
+
 /* Lobby tab content container */
 .lobby-content {
   width: 100%;
-  height: calc(100% - 72px); /* Leaves space for bottom navigation bar */
+  /* Leaves space for the bottom navigation bar, including its safe-area inset now that it's
+     pinned to the true screen edge rather than floating inside a card. */
+  height: calc(100% - 72px - env(safe-area-inset-bottom, 0px));
   overflow: hidden;
   position: relative;
 }
@@ -504,7 +596,14 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.04);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+}
+
+.rules-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .rules-title {
@@ -515,11 +614,160 @@ body {
   text-transform: uppercase;
 }
 
-.rules-text {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--color-text-muted);
+.rules-howto-link {
+  background: none;
+  border: none;
+  color: var(--color-gold-soft);
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.rules-howto-link:hover {
+  color: var(--color-gold);
+}
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  list-style: none;
   text-align: left;
+}
+
+.rules-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.rules-list strong {
+  color: var(--color-text-main);
+  font-weight: 700;
+}
+
+.rule-num {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-active);
+  color: var(--color-gold-soft);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+/* How-to-play diagrams — flat mini board cells, distinct from the 3D logo tile so they read
+   as a schematic rather than a decoration. */
+.howto-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.howto-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.howto-text {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+  text-align: center;
+  max-width: 300px;
+}
+
+.howto-diagrams {
+  display: flex;
+  gap: 22px;
+}
+
+.howto-diagram {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.rule-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 26px);
+  grid-template-rows: repeat(3, 26px);
+  gap: 3px;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--color-wood-dark);
+}
+
+.rule-mini-cell {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rule-mini-cell--legal {
+  background: rgba(63, 143, 92, 0.25);
+  box-shadow: inset 0 0 0 1.5px var(--color-player-b);
+}
+
+.rule-mini-cell--illegal {
+  background: rgba(140, 50, 66, 0.25);
+  box-shadow: inset 0 0 0 1.5px #a5545f;
+}
+
+.rule-mini-piece {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+.rule-mini-piece.green {
+  background: var(--color-player-b);
+}
+
+.rule-mini-piece.blue {
+  background: var(--color-player-a);
+}
+
+.rule-mini-row {
+  display: flex;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-wood-dark);
+  box-shadow: 0 0 0 1.5px var(--color-gold);
+}
+
+.howto-verdict {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.howto-verdict--yes {
+  color: #7dc296;
+}
+
+.howto-verdict--no {
+  color: #d98a95;
 }
 
 /* Level details preview inside modal */
@@ -540,16 +788,14 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 72px;
+  min-height: 72px;
   background: var(--color-wood-dark);
   border-top: 1px solid var(--color-border-subtle);
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding: 0 12px max(0px, env(safe-area-inset-bottom));
+  padding: 6px 12px max(6px, env(safe-area-inset-bottom));
   z-index: 10;
-  border-bottom-left-radius: 18px;
-  border-bottom-right-radius: 18px;
 }
 
 .nav-item {
@@ -955,12 +1201,14 @@ body {
 
 .hud {
   position: absolute;
-  top: 24px;
+  top: max(16px, env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 16px;
-  width: auto;
+  gap: 10px;
+  /* The three pills together have a real minimum content width — cap them against the actual
+     viewport so they can never run past the screen edge on a narrow phone. */
+  max-width: calc(100vw - 16px);
   pointer-events: none;
   transition: opacity 0.5s ease, transform 0.5s ease;
   z-index: 10;
@@ -975,15 +1223,15 @@ body {
 .hud-player {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 22px;
+  gap: 8px;
+  padding: 8px 14px;
   border-radius: 12px;
   background: linear-gradient(160deg, var(--color-panel-raised), rgba(18, 13, 9, 0.92));
   backdrop-filter: blur(3px);
   border: 1px solid var(--color-border-subtle);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-  min-width: 120px;
+  min-width: 76px;
   justify-content: center;
 }
 
@@ -1114,8 +1362,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 76px;
-  padding: 10px 16px;
+  min-width: 60px;
+  padding: 8px 12px;
   border-radius: 12px;
   background: linear-gradient(160deg, var(--color-panel-raised), rgba(18, 13, 9, 0.92));
   backdrop-filter: blur(3px);
