@@ -110,30 +110,38 @@ spawnDemoBoard();
 function clearDemoBoard() {
   const duration = 450;
   const board = scene.getObjectByName("board");
-  for (const mesh of demoPieces) {
-    const startTime = performance.now() + Math.random() * 300;
-    const material = mesh.material as THREE.MeshStandardMaterial;
-    function step(now: number) {
-      if (now < startTime) {
-        requestAnimationFrame(step);
-        return;
-      }
-      const t = Math.min((now - startTime) / duration, 1);
-      mesh.scale.setScalar(Math.max(1 - t, 0.001));
-      material.opacity = 1 - t;
-      if (t < 1) {
-        requestAnimationFrame(step);
-      } else {
-        if (board) {
-          board.remove(mesh);
-        } else {
-          scene.remove(mesh);
-        }
-      }
-    }
-    requestAnimationFrame(step);
-  }
+  const piecesToClear = demoPieces.slice();
   demoPieces.length = 0;
+  if (piecesToClear.length === 0) return;
+
+  function removeAll() {
+    for (const mesh of piecesToClear) {
+      if (board) board.remove(mesh);
+      else scene.remove(mesh);
+    }
+  }
+
+  // One shared rAF loop for every piece instead of one independent chain per piece — simpler,
+  // and removes the failure mode where a stalled/dropped chain leaves its piece behind forever
+  // (this is decorative menu dressing, not something a leftover ghost piece should ever survive
+  // into an actual game). The timeout is a hard backstop: even if rAF never fires again for
+  // whatever reason, the pieces still get removed, just without the fade.
+  const startTime = performance.now();
+  function step(now: number) {
+    const t = Math.min((now - startTime) / duration, 1);
+    for (const mesh of piecesToClear) {
+      mesh.scale.setScalar(Math.max(1 - t, 0.001));
+      const material = mesh.material as THREE.MeshStandardMaterial;
+      material.opacity = 1 - t;
+    }
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      removeAll();
+    }
+  }
+  requestAnimationFrame(step);
+  setTimeout(removeAll, duration + 200);
 }
 
 const trayZ = BOARD_HALF + TRAY_RADIUS + TRAY_BOARD_MARGIN;

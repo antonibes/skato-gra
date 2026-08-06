@@ -263,12 +263,20 @@ body {
 
 .home-stat-card--campaign {
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
 .home-stat-card--campaign:hover {
   border-color: var(--color-border-active);
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* :hover never fires on a touch tap, so without this the card gave zero feedback when pressed
+   on a phone — the one place that actually matters most for this app. */
+.home-stat-card--campaign:active {
+  border-color: var(--color-border-active);
+  background: rgba(255, 255, 255, 0.06);
+  transform: scale(0.96);
 }
 
 .home-stat-label {
