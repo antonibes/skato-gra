@@ -3,11 +3,12 @@ import { createSceneRig } from "./three/scene";
 import { createBoard } from "./three/board";
 import { createTable } from "./three/table";
 import { createTrayMesh, createScatteredPieces, createDemoPiece, randomTraySpot, type PieceOwner } from "./three/pieces";
-import { setupInteraction, type Tray } from "./three/interaction";
+import { setupInteraction, type Tray, type DragCandidate } from "./three/interaction";
 import { animateCameraTo, menuPose, gamePose, endPose } from "./three/cameraRig";
 import {
   BOARD_SIZE,
   BOARD_HALF,
+  CELL_SIZE,
   TRAY_RADIUS,
   TRAY_BOARD_MARGIN,
   TRAY_PIECES_PER_LAYER,
@@ -177,6 +178,40 @@ function highlightWinningLine(cells: BoardCoord[]) {
     scene.add(ring);
     highlightRings.push(ring);
   }
+}
+
+// Optional "which cell will this land on" indicator (gold/red), shown while dragging — off by
+// default since the piece now sits close enough to the board to be its own preview, but some
+// players prefer the extra cue, so it's a toggle in Settings.
+const HIGHLIGHT_SETTING_KEY = "skato_highlight_enabled";
+let highlightEnabled = localStorage.getItem(HIGHLIGHT_SETTING_KEY) === "1";
+
+const dragHighlightMaterial = new THREE.MeshBasicMaterial({
+  color: COLOR.gold,
+  transparent: true,
+  opacity: 0.45,
+  side: THREE.DoubleSide,
+});
+const dragHighlightMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(CELL_SIZE * 0.92, CELL_SIZE * 0.92),
+  dragHighlightMaterial
+);
+dragHighlightMesh.rotation.x = -Math.PI / 2;
+dragHighlightMesh.visible = false;
+scene.add(dragHighlightMesh);
+
+const DRAG_LEGAL_COLOR = new THREE.Color(COLOR.gold);
+const DRAG_ILLEGAL_COLOR = new THREE.Color(0xc0453f);
+
+function onDragUpdate(candidate: DragCandidate | null) {
+  if (!highlightEnabled || !candidate) {
+    dragHighlightMesh.visible = false;
+    return;
+  }
+  const world = cellToWorld(candidate.col, candidate.row);
+  dragHighlightMesh.position.set(world.x, PIECE_HEIGHT + 0.015, world.z);
+  dragHighlightMesh.visible = true;
+  dragHighlightMaterial.color.copy(candidate.legal ? DRAG_LEGAL_COLOR : DRAG_ILLEGAL_COLOR);
 }
 
 function trayMeshFor(owner: PieceOwner): THREE.Group {
@@ -450,7 +485,8 @@ const interaction = setupInteraction(
   [greenTray, blueTray],
   state,
   refreshHud,
-  () => (botConfig ? (botConfig.owner === "green" ? "blue" : "green") : null)
+  () => (botConfig ? (botConfig.owner === "green" ? "blue" : "green") : null),
+  onDragUpdate
 );
 
 let gameStarted = false;
@@ -792,6 +828,16 @@ volumeSlider.addEventListener("input", () => {
     volumeValueLabel.textContent = `${val}%`;
   }
 });
+
+const highlightToggle = document.getElementById("highlight-toggle") as HTMLInputElement;
+if (highlightToggle) {
+  highlightToggle.checked = highlightEnabled;
+  highlightToggle.addEventListener("change", () => {
+    highlightEnabled = highlightToggle.checked;
+    localStorage.setItem(HIGHLIGHT_SETTING_KEY, highlightEnabled ? "1" : "0");
+    if (!highlightEnabled) dragHighlightMesh.visible = false;
+  });
+}
 
 const clock = new THREE.Clock();
 

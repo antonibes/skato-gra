@@ -72,6 +72,12 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
+export interface DragCandidate {
+  col: number;
+  row: number;
+  legal: boolean;
+}
+
 export interface Interaction {
   update: (delta: number) => boolean;
   placeForOwner: (tray: Tray, col: number, row: number) => boolean;
@@ -85,7 +91,8 @@ export function setupInteraction(
   trays: Tray[],
   state: GameState,
   onChange: () => void,
-  getHumanOwner: () => PieceOwner | null
+  getHumanOwner: () => PieceOwner | null,
+  onDragUpdate: (candidate: DragCandidate | null) => void = () => {}
 ): Interaction {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -212,6 +219,8 @@ export function setupInteraction(
     if (raycaster.ray.intersectPlane(dragPlane, point)) {
       dragging.piece.mesh.position.x = point.x;
       dragging.piece.mesh.position.z = point.z;
+      const { col, row } = worldToCell(point.x, point.z);
+      onDragUpdate({ col, row, legal: isLegalMove(state, col, row) });
     }
   }
 
@@ -219,6 +228,7 @@ export function setupInteraction(
     if (!dragging) return;
     const { piece, tray } = dragging;
     dragging = null;
+    onDragUpdate(null);
 
     const { x, z } = piece.mesh.position;
     const { col, row } = worldToCell(x, z);

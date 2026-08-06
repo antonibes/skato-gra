@@ -14,11 +14,10 @@ export const TRAY_FLOOR_Y = 0.02;
 export const TRAY_PIECES_PER_LAYER = 20;
 export const TRAY_BOARD_MARGIN = 1.3;
 
-// Held above the board while dragging — kept just barely off the surface (piece rests at
-// PIECE_HEIGHT/2 = 0.08 when placed) so it reads as "about to be set down right here" rather
-// than floating. Visibility doesn't depend on height anymore — the screen-space aim offset in
-// interaction.ts handles that.
-export const DRAG_HEIGHT = 0.26;
+// Held as close to the board as possible while dragging (piece rests at PIECE_HEIGHT/2 = 0.08
+// when placed) — visibility doesn't depend on height, the screen-space aim offset in
+// interaction.ts handles that, so this can hug the surface for precise aiming.
+export const DRAG_HEIGHT = 0.14;
 export const GRAVITY = -16;
 export const BOUNCE_DAMPING = 0.32;
 export const MIN_BOUNCE_SPEED = 0.55;
