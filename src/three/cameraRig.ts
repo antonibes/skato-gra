@@ -39,8 +39,10 @@ const END_FORWARD_BIAS = 0;
 const END_FIT_HALF_WIDTH = FIT_HALF_WIDTH * 1.15;
 // Aims the camera at a point below board level instead of the board surface itself, which
 // pushes the board's projection up toward the top of the frame — freeing the lower portion of
-// the screen for the result card to sit in without burying the board underneath it.
-const END_LOOK_AT_Y_OFFSET = -3;
+// the screen for the result card to sit in without burying the board underneath it. This has
+// strongly diminishing returns (verified against projected frame-corner coordinates), so it's
+// pushed close to where the extra shift stops being worth the tradeoff.
+const END_LOOK_AT_Y_OFFSET = -7;
 
 /** Distance from the board center a camera with this fov/aspect needs, so the
  *  full board fits inside the frustum. Prevents extreme zooming on wide screens. */

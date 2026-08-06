@@ -310,12 +310,13 @@ body {
 
 /* GRAJ / GRAJ ONLINE as two equal-weight side-by-side buttons read as indecisive — online play
    isn't even implemented yet (it just shows a "coming soon" notice), so it shouldn't visually
-   compete with the actual primary action. One large primary CTA, one quiet secondary link. */
+   compete with the actual primary action. One large primary CTA stacked over a clearly-secondary
+   ghost button (not a bare text link — still reads as a real, intentional button, just quieter). */
 .home-cta {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
 }
 
@@ -330,33 +331,25 @@ body {
   height: 20px;
 }
 
-.btn-online-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  font-family: var(--font-family);
+.btn-menu--ghost {
+  position: relative;
+  padding: 13px 18px;
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  cursor: pointer;
-  padding: 4px 8px;
-  transition: color 0.15s ease;
 }
 
-.btn-online-link .btn-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.btn-online-link:hover {
-  color: var(--color-text-main);
-}
-
-.btn-online-link:active {
-  transform: scale(0.97);
+.btn-badge {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--color-gold-soft);
+  background: rgba(201, 162, 75, 0.12);
+  border: 1px solid rgba(201, 162, 75, 0.3);
+  border-radius: 999px;
+  padding: 3px 8px;
 }
 
 /* Lobby tab content container */
