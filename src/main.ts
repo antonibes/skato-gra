@@ -56,7 +56,6 @@ const resultScoreGreen = document.getElementById("result-score-green")!;
 const resultScoreBlue = document.getElementById("result-score-blue")!;
 const resultCalcGreen = document.getElementById("result-calc-green")!;
 const resultCalcBlue = document.getElementById("result-calc-blue")!;
-const resultTime = document.getElementById("result-time")!;
 const hudTimer = document.getElementById("hud-timer")!;
 const undoButton = document.getElementById("undo-button")!;
 const undoCountEl = document.getElementById("undo-count")!;
@@ -346,11 +345,8 @@ function playOutcomeSound() {
 
 function formatScoreCalc(groups: number[]): string {
   const scoring = groups.filter((g) => g >= 5);
-  if (scoring.length === 0) {
-    return "Brak grup ≥ 5 (0 pkt)";
-  }
-  const sum = scoring.reduce((a, b) => a + b, 0);
-  return `${scoring.join(" + ")} = ${sum} pkt`;
+  if (scoring.length === 0) return "Brak grup ≥ 5";
+  return scoring.join(" + ");
 }
 
 /** For an early win the winner's score is forced to the full 32 and the loser's to their raw
@@ -358,8 +354,8 @@ function formatScoreCalc(groups: number[]): string {
  *  show what actually happened instead of a stale "9 + 6 = 15 pkt" next to a displayed 32. */
 function calcTextFor(owner: PieceOwner): string {
   if (state.endReason === "five-in-row") {
-    if (owner === state.winner) return "Automatyczna wygrana — pełne 32 pkt";
-    return `Ułożone pionki: ${state.scores[owner]} szt.`;
+    if (owner === state.winner) return "Automatyczna wygrana";
+    return `Ułożone pionki: ${state.scores[owner]}`;
   }
   return formatScoreCalc(getPlayerGroups(state.board, owner));
 }
@@ -388,8 +384,6 @@ function refreshHud() {
 
     resultTitle.textContent = outcomeLabel();
     resultReason.textContent = reasonLabel();
-    resultTime.textContent =
-      matchStartTime !== null ? `Czas rozgrywki: ${formatDuration(performance.now() - matchStartTime)}` : "";
 
     // Set score values
     resultScoreGreen.textContent = String(state.scores.green);

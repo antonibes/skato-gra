@@ -26,10 +26,16 @@ const MENU_FORWARD_BIAS = 0.5;
 const GAME_ELEVATION_DEG = 20;
 const GAME_FORWARD_BIAS = 1.8;
 
-// A pulled-back overview shown once the game ends, so the whole finished board (and the
-// winning-line highlight) reads clearly instead of staying at the closer gameplay angle.
-const END_ELEVATION_DEG = 34;
-const END_FORWARD_BIAS = 0.6;
+// A near-top-down "2D map" overview shown once the game ends, so the whole finished board
+// (and the winning-line highlight) reads at a glance without the result card needing to
+// overlap it. Kept a few degrees off true vertical (0°) since camera.lookAt's internal
+// up-vector math gets numerically unstable exactly at vertical — 16° reads as flat/overhead
+// while staying well clear of that degeneracy.
+const END_ELEVATION_DEG = 16;
+const END_FORWARD_BIAS = 0.9;
+// Extra framing margin for the end pose only: the board needs to sit in the upper portion of
+// the screen, clear of the result card anchored at the bottom, not fill the whole viewport.
+const END_FIT_HALF_WIDTH = FIT_HALF_WIDTH * 1.3;
 
 /** Distance from the board center a camera with this fov/aspect needs, so the
  *  full board fits inside the frustum. Prevents extreme zooming on wide screens. */
@@ -73,7 +79,7 @@ export function gamePose(camera: THREE.PerspectiveCamera): CameraPose {
 }
 
 export function endPose(camera: THREE.PerspectiveCamera): CameraPose {
-  return poseForElevation(camera, END_ELEVATION_DEG, END_FORWARD_BIAS, FIT_HALF_WIDTH);
+  return poseForElevation(camera, END_ELEVATION_DEG, END_FORWARD_BIAS, END_FIT_HALF_WIDTH);
 }
 
 function easeInOutCubic(t: number): number {
