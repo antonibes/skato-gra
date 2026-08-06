@@ -115,7 +115,12 @@ body {
   max-height: 100%;
   border-radius: 0;
   padding: max(20px, env(safe-area-inset-top)) 0 0 0;
-  background: linear-gradient(175deg, var(--color-bg-panel), rgba(12, 9, 6, 0.97));
+  /* A soft warm glow behind the logo instead of a flat gradient — adds some depth without
+     drifting toward glossy/glassmorphism "app" chrome. */
+  background:
+    radial-gradient(ellipse 130% 55% at 50% 0%, rgba(110, 35, 49, 0.28), transparent 62%),
+    radial-gradient(ellipse 90% 40% at 50% 100%, rgba(60, 40, 24, 0.35), transparent 65%),
+    linear-gradient(175deg, var(--color-bg-panel), rgba(12, 9, 6, 0.97));
 }
 
 #menu-screen.hidden {
@@ -295,8 +300,55 @@ body {
   gap: 32px;
 }
 
-#tab-play .menu-buttons {
-  margin-top: 0;
+/* GRAJ / GRAJ ONLINE as two equal-weight side-by-side buttons read as indecisive — online play
+   isn't even implemented yet (it just shows a "coming soon" notice), so it shouldn't visually
+   compete with the actual primary action. One large primary CTA, one quiet secondary link. */
+.home-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.btn-menu--large {
+  padding: 17px 18px;
+  font-size: 15px;
+  border-radius: 12px;
+}
+
+.btn-menu--large .btn-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.btn-online-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.15s ease;
+}
+
+.btn-online-link .btn-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-online-link:hover {
+  color: var(--color-text-main);
+}
+
+.btn-online-link:active {
+  transform: scale(0.97);
 }
 
 /* Lobby tab content container */

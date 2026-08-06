@@ -26,19 +26,21 @@ const MENU_FORWARD_BIAS = 0.5;
 const GAME_ELEVATION_DEG = 20;
 const GAME_FORWARD_BIAS = 1.8;
 
-// A near-top-down "2D map" overview shown once the game ends. 10° is close to true vertical
-// (0°) without hitting it — much closer to it and camera.lookAt's internal up-vector math gets
-// numerically unstable. This is also the elevation that best fills a tall phone screen: for a
-// SQUARE board, the achievable vertical fill is capped at roughly the screen's own aspect ratio
-// no matter the zoom level (fitting the board's width to a narrow portrait FOV always leaves
-// the taller vertical FOV under-filled by that same ratio) — and that cap is highest right at
-// true top-down, since any added tilt only shrinks it further through foreshortening.
-const END_ELEVATION_DEG = 10;
+// A near-top-down "map" overview shown once the game ends. Reuses the same elevation already
+// proven fine during actual gameplay (GAME_ELEVATION_DEG) rather than pushing flatter — an
+// earlier, much flatter (10°) + tightly-cropped attempt pushed the board's corners out toward
+// the edge of the frame, right where a rectilinear lens's wide-angle stretching is most visible
+// (a flat grid's far corners visibly bow/stretch, the "fisheye at the edges" look). Pulling back
+// to a looser fit keeps the board's corners closer to the frame center, away from that stretch.
+const END_ELEVATION_DEG = 20;
 const END_FORWARD_BIAS = 0;
-// Tight fit, not the wide menu-spin margin: baskets are hidden outright when the result screen
-// shows (see main.ts), so this only needs to frame the board+frame itself, snugly, with a hair
-// of breathing room short of the true edge (verified against the projected frame corners).
-const END_FIT_HALF_WIDTH = FIT_HALF_WIDTH * 0.93;
+// Baskets are hidden outright when the result screen shows (see main.ts), so this only needs to
+// frame the board+frame itself — loosened from an initial edge-hugging fit (see note above).
+const END_FIT_HALF_WIDTH = FIT_HALF_WIDTH * 1.15;
+// Aims the camera at a point below board level instead of the board surface itself, which
+// pushes the board's projection up toward the top of the frame — freeing the lower portion of
+// the screen for the result card to sit in without burying the board underneath it.
+const END_LOOK_AT_Y_OFFSET = -3;
 
 /** Distance from the board center a camera with this fov/aspect needs, so the
  *  full board fits inside the frustum. Prevents extreme zooming on wide screens. */
@@ -61,7 +63,8 @@ function poseForElevation(
   camera: THREE.PerspectiveCamera,
   elevationDeg: number,
   forwardBias: number,
-  halfWidth: number
+  halfWidth: number,
+  lookAtYOffset = 0
 ): CameraPose {
   const distance = fitDistance(camera, halfWidth);
   const elevationRad = THREE.MathUtils.degToRad(elevationDeg);
@@ -69,7 +72,7 @@ function poseForElevation(
   const z = distance * Math.sin(elevationRad) + forwardBias;
   return {
     position: new THREE.Vector3(0, y, z),
-    lookAt: new THREE.Vector3(0, 0, forwardBias * 0.35),
+    lookAt: new THREE.Vector3(0, lookAtYOffset, forwardBias * 0.35),
   };
 }
 
@@ -82,7 +85,7 @@ export function gamePose(camera: THREE.PerspectiveCamera): CameraPose {
 }
 
 export function endPose(camera: THREE.PerspectiveCamera): CameraPose {
-  return poseForElevation(camera, END_ELEVATION_DEG, END_FORWARD_BIAS, END_FIT_HALF_WIDTH);
+  return poseForElevation(camera, END_ELEVATION_DEG, END_FORWARD_BIAS, END_FIT_HALF_WIDTH, END_LOOK_AT_Y_OFFSET);
 }
 
 function easeInOutCubic(t: number): number {
