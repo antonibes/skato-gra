@@ -60,6 +60,9 @@ const hudTimer = document.getElementById("hud-timer")!;
 const undoButton = document.getElementById("undo-button")!;
 const undoCountEl = document.getElementById("undo-count")!;
 const restartButton = document.getElementById("restart-button")!;
+const resultCard = document.querySelector(".result-card")!;
+const previewBoardButton = document.getElementById("preview-board-button")!;
+const previewCloseButton = document.getElementById("preview-close-button")!;
 const howtoScreen = document.getElementById("howto-screen")!;
 const openHowtoButton = document.getElementById("open-howto-button")!;
 const howtoCloseButton = document.getElementById("howto-close-button")!;
@@ -610,6 +613,18 @@ botStartButton.addEventListener("click", () => {
 
 restartButton.addEventListener("click", () => {
   window.location.reload();
+});
+
+previewBoardButton.addEventListener("click", () => {
+  resultScreen.classList.add("previewing");
+  resultCard.classList.add("hidden");
+  previewCloseButton.classList.remove("hidden");
+});
+
+previewCloseButton.addEventListener("click", () => {
+  resultScreen.classList.remove("previewing");
+  resultCard.classList.remove("hidden");
+  previewCloseButton.classList.add("hidden");
 });
 
 undoButton.addEventListener("click", () => {

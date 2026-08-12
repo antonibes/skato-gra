@@ -26,8 +26,8 @@ const TIME_BUDGET_MS: Record<Difficulty, number> = {
   easy: 0,
   medium: 120,
   hard: 280,
-  expert: 600,
-  master: 1200,
+  expert: 900,
+  master: 1800,
 };
 
 // Width of the move list considered at the root — kept generous so the bot's actual choice of
@@ -48,8 +48,8 @@ const INNER_CANDIDATE_CAP: Record<Difficulty, number> = {
   easy: BOARD_SIZE * BOARD_SIZE,
   medium: 8,
   hard: 8,
-  expert: 8,
-  master: 8,
+  expert: 9,
+  master: 10,
 };
 
 export interface Move {
@@ -233,43 +233,58 @@ function applySim(sim: SimState, owner: PieceOwner, move: Move): SimState {
   return { board, scores, over, winner, current, pieceCount };
 }
 
+// Move ordering only ever sees run lengths 0-3 here: anything that would make a 4-run (one
+// away from completing 5) is already caught by the exact win/block checks above and returns
+// early. A LINEAR weight per run length badly undervalues a "three" (an open three is a real,
+// forcing threat in a five-in-a-row game) against ordinary moves — center bias and a couple of
+// adjacent cells could easily outscore it. That matters a lot more than it sounds: with the
+// search's candidate list narrowed at every non-root node (see INNER_CANDIDATE_CAP), a threat
+// that doesn't rank near the top gets pruned away and the search literally never considers
+// addressing it. Ramping up steeply keeps a real three-in-a-row threat — ours or theirs — above
+// the noise of ordinary positional moves so it always survives the cut.
+const RUN_THREAT_WEIGHT = [0, 9, 34, 150];
+
+function runThreatWeight(run: number): number {
+  return RUN_THREAT_WEIGHT[run] ?? RUN_THREAT_WEIGHT[RUN_THREAT_WEIGHT.length - 1];
+}
+
 function evaluateCandidateMove(sim: SimState, owner: PieceOwner, move: Move): number {
   const opponent: PieceOwner = owner === "green" ? "blue" : "green";
-  
+
   // 1. Check if this move wins immediately for us
   if (makesFiveInRow(sim.board, owner, move.col, move.row)) {
     return 100000;
   }
-  
+
   // 2. Check if this move blocks an opponent's immediate win (4-in-a-row)
   if (makesFiveInRow(sim.board, opponent, move.col, move.row)) {
     return 50000;
   }
-  
+
   let score = 0;
 
-  // 3. Reward building our own runs / blocking opponent runs. This is the signal that matters
-  // most in a five-in-a-row game — a plain adjacency count ranks a clumped-but-static move above
-  // a move that advances a run one step from winning, which starves deep search (which leans on
-  // this ordering heavily) of exactly the candidates it most needs to see. DIRECTIONS has both
-  // signed entries per axis ([1,0]/[-1,0] and [0,1]/[0,-1]); countDirection is already called for
-  // both signs within a single iteration below, so only two of the four entries need visiting to
-  // cover both axes — the other two would just repeat the same two runs.
+  // 3. Reward building our own runs / blocking opponent runs — see runThreatWeight for why this
+  // isn't linear. DIRECTIONS has both signed entries per axis ([1,0]/[-1,0] and [0,1]/[0,-1]);
+  // countDirection is already called for both signs within a single iteration below, so only two
+  // of the four entries need visiting to cover both axes — the other two would just repeat the
+  // same two runs.
   for (const [dc, dr] of AXES) {
     const ourRun = countDirection(sim.board, owner, move.col + dc, move.row + dr, dc, dr) +
                     countDirection(sim.board, owner, move.col - dc, move.row - dr, -dc, -dr);
     const oppRun = countDirection(sim.board, opponent, move.col + dc, move.row + dr, dc, dr) +
                     countDirection(sim.board, opponent, move.col - dc, move.row - dr, -dc, -dr);
 
-    score += ourRun * 12;
-    score += oppRun * 10;
+    // Blocking is weighted a little above building, so that when in doubt (e.g. this move both
+    // extends our own two and blocks their two) defense still edges out the ranking.
+    score += runThreatWeight(ourRun);
+    score += runThreatWeight(oppRun) * 1.15;
   }
 
   // 4. Center bias
   const center = 3.5;
   const dist = Math.abs(move.col - center) + Math.abs(move.row - center);
   score += (8 - dist) * 1.5;
-  
+
   return score;
 }
 
@@ -381,9 +396,23 @@ function evaluate(sim: SimState, botOwner: PieceOwner, opponent: PieceOwner): nu
     }
   }
 
-  const runDiff = botLongestRun - opponentLongestRun;
+  // Same non-linear reasoning as runThreatWeight, but for leaf evaluation: a leaf can genuinely
+  // have an open four sitting on the board (unlike move ordering, this isn't gated by the exact
+  // win/block checks), so this needs to cover run lengths past 3 too. A flat linear runDiff
+  // barely distinguished "opponent has a three" from "opponent has an open four" (60 points
+  // apart at most), which is nowhere near enough for search to reliably steer away from leaving
+  // a four-length threat unaddressed — it's one move from an automatic loss.
+  const runThreat = (run: number): number => {
+    if (run <= 0) return 0;
+    if (run === 1) return 3;
+    if (run === 2) return 14;
+    if (run === 3) return 60;
+    if (run === 4) return 320;
+    return 320 + (run - 4) * 500;
+  };
+  const runDiff = runThreat(botLongestRun) - runThreat(opponentLongestRun) * 1.1;
 
-  return actualScoreDiff * 150 + (botGroupPotential - opponentGroupPotential) * 15 + positional + runDiff * 60;
+  return actualScoreDiff * 150 + (botGroupPotential - opponentGroupPotential) * 15 + positional + runDiff;
 }
 
 class SearchTimeout extends Error {}

@@ -492,13 +492,30 @@
             </div>
           </div>
 
-          <button id="restart-button" class="btn-menu btn-menu--play" type="button">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-            </svg>
-            <span>ZAGRAJ PONOWNIE</span>
-          </button>
+          <div class="result-buttons">
+            <button id="restart-button" class="btn-menu btn-menu--play" type="button">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+              </svg>
+              <span>ZAGRAJ PONOWNIE</span>
+            </button>
+            <button id="preview-board-button" class="btn-menu btn-menu--settings" type="button">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>PODEJRZYJ PLANSZĘ</span>
+            </button>
+          </div>
         </div>
+
+        <!-- Shown only while the card above is hidden by "Podejrzyj planszę" -->
+        <button id="preview-close-button" class="preview-close-button hidden" type="button">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 15l-6-6-6 6" />
+          </svg>
+          <span>POKAŻ WYNIK</span>
+        </button>
       </section>
     </div>
     <script type="module" src="/src/main.ts"></script>
