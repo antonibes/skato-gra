@@ -363,16 +363,13 @@ function formatScoreCalc(groups: number[]): string {
   return scoring.join(" + ");
 }
 
-/** For an early win the winner's score is forced to the full 32 and the loser's to their raw
- *  placed-piece count (see rules.ts) — the group breakdown no longer matches those numbers, so
- *  show what actually happened instead of a stale "9 + 6 = 15 pkt" next to a displayed 32. */
+// Score is always the same rule for both players, win or lose: connected groups of 5+ pieces,
+// nothing else — a five-in-a-row win is decided by the line itself, not by score, so the winner
+// doesn't get a score bonus for it (that line is already counted here if it's part of a
+// qualifying group, same as any other run of pieces).
 function calcTextFor(owner: PieceOwner): string {
-  if (state.endReason === "five-in-row") {
-    if (owner === state.winner) return "Automatyczna wygrana — pełne 32 pkt";
-    // The loser's number here is a raw placed-piece count, not a group-based score (the game
-    // never got a chance to fill the board, so "score from groups ≥5" wouldn't reward the
-    // fight at all) — spell that out, or a number with no matching group reads as a bug.
-    return `${state.scores[owner]} ułożonych pionków (nie grupa ≥5)`;
+  if (state.endReason === "five-in-row" && owner === state.winner) {
+    return "Automatyczna wygrana — 5 w rzędzie";
   }
   return formatScoreCalc(getPlayerGroups(state.board, owner));
 }
