@@ -368,8 +368,11 @@ function formatScoreCalc(groups: number[]): string {
  *  show what actually happened instead of a stale "9 + 6 = 15 pkt" next to a displayed 32. */
 function calcTextFor(owner: PieceOwner): string {
   if (state.endReason === "five-in-row") {
-    if (owner === state.winner) return "Automatyczna wygrana";
-    return `Ułożone pionki: ${state.scores[owner]}`;
+    if (owner === state.winner) return "Automatyczna wygrana — pełne 32 pkt";
+    // The loser's number here is a raw placed-piece count, not a group-based score (the game
+    // never got a chance to fill the board, so "score from groups ≥5" wouldn't reward the
+    // fight at all) — spell that out, or a number with no matching group reads as a bug.
+    return `${state.scores[owner]} ułożonych pionków (nie grupa ≥5)`;
   }
   return formatScoreCalc(getPlayerGroups(state.board, owner));
 }
