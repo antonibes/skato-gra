@@ -363,13 +363,12 @@ function formatScoreCalc(groups: number[]): string {
   return scoring.join(" + ");
 }
 
-// Score is always the same rule for both players, win or lose: connected groups of 5+ pieces,
-// nothing else — a five-in-a-row win is decided by the line itself, not by score, so the winner
-// doesn't get a score bonus for it (that line is already counted here if it's part of a
-// qualifying group, same as any other run of pieces).
+// A five-in-a-row win always scores the full 32 for the winner regardless of their actual
+// group count (see rules.ts) — the loser's score is untouched, still exactly the groups-of-5+
+// rule used everywhere else.
 function calcTextFor(owner: PieceOwner): string {
   if (state.endReason === "five-in-row" && owner === state.winner) {
-    return "Automatyczna wygrana — 5 w rzędzie";
+    return "Automatyczna wygrana — pełne 32 pkt";
   }
   return formatScoreCalc(getPlayerGroups(state.board, owner));
 }

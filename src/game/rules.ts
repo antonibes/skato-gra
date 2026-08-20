@@ -1,4 +1,4 @@
-import { BOARD_SIZE } from "../three/config";
+import { BOARD_SIZE, PIECE_COUNT } from "../three/config";
 import type { PieceOwner } from "../three/pieces";
 
 export type Cell = PieceOwner | null;
@@ -152,15 +152,17 @@ export function applyMove(state: GameState, owner: PieceOwner, col: number, row:
   const winningLine = findWinningLine(state.board, owner, col, row);
 
   if (winningLine) {
-    // Score stays exactly what calculatePlayerScore just computed above — the five-in-a-row
-    // itself is a connected group of >=5, so it's already counted there like any other scoring
-    // group. No special-cased override: the rules only ever count groups of 5+, full stop, for
-    // both the winner and the loser, matching the physical game's scoring rule.
     state.over = true;
     state.winner = owner;
     state.endReason = "five-in-row";
     state.endTriggeredBy = owner;
     state.winningLine = winningLine;
+
+    // A five-in-a-row is an automatic full win, scored as the full 32 regardless of how many
+    // qualifying groups the winner had actually built up. The loser's score is untouched —
+    // still exactly calculatePlayerScore()'s groups-of-5+ result from above, same rule as any
+    // other end-of-game score.
+    state.scores[owner] = PIECE_COUNT;
   } else if (boardFull) {
     state.over = true;
     state.winner =
