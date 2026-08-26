@@ -617,13 +617,18 @@ function restrictToInnerArea(moves: Move[], margin: number): Move[] {
 // ranges plays on regardless of any threat on the board — intentional, not a bug: new players
 // mostly focus on landing their own five, and this is what lets that land often enough to feel
 // rewarding at the easiest tier.
+//
+// The client's own schedule ends in a permanent blind spot past a point (originally move 28 for
+// Easy, 30 for Medium) — fine on paper, but a game can run up to 32 pieces per side, so a long
+// game handed a real stretch of moves where the bot defended nothing at all, an easy late-game
+// win for anyone patient enough to wait it out. Closed that off: both schedules end on an active
+// block phase instead of trailing into "never blocks again."
 function easyShouldBlock(botMoveIndex: number): boolean {
   if (botMoveIndex <= 8) return true;
   if (botMoveIndex <= 11) return false;
   if (botMoveIndex <= 18) return true;
   if (botMoveIndex <= 23) return false;
-  if (botMoveIndex <= 28) return true;
-  return false;
+  return true; // 24 onward, including what used to be a permanent blind spot past 28
 }
 
 function mediumShouldBlock(botMoveIndex: number): boolean {
@@ -631,8 +636,7 @@ function mediumShouldBlock(botMoveIndex: number): boolean {
   if (botMoveIndex === 11) return false;
   if (botMoveIndex <= 18) return true;
   if (botMoveIndex <= 20) return false;
-  if (botMoveIndex <= 30) return true;
-  return false;
+  return true; // 21 onward, including what used to be a permanent blind spot past 30
 }
 
 function chooseEasyMove(sim: SimState, botOwner: PieceOwner, opponent: PieceOwner, allMoves: Move[]): Move {
