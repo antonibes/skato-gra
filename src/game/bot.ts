@@ -470,38 +470,49 @@ function countOwnerPieces(board: Cell[][], owner: PieceOwner): number {
   return count;
 }
 
-// "Blocking the five" per the client's spec means two distinct things: stopping an opponent run
-// of 4 with an open end (one move from winning — makesFiveInRow already detects exactly this),
-// and stopping an open three (a run of 3 with BOTH ends empty, since left alone it becomes an
-// unstoppable open four). This scans for the latter: the first open three found, blocked at one
-// of its two open ends.
-function findOpenThreeBlockMove(board: Cell[][], opponent: PieceOwner): Move | null {
-  for (const [dc, dr] of AXES) {
-    for (let row = 0; row < BOARD_SIZE; row++) {
-      for (let col = 0; col < BOARD_SIZE; col++) {
-        if (board[row][col] !== opponent) continue;
-
-        const prevCol = col - dc;
-        const prevRow = row - dr;
-        const prevInBounds = prevCol >= 0 && prevCol < BOARD_SIZE && prevRow >= 0 && prevRow < BOARD_SIZE;
-        if (prevInBounds && board[prevRow][prevCol] === opponent) continue; // not the start of a run
-
-        const runLen = countDirection(board, opponent, col, row, dc, dr);
-        if (runLen !== 3) continue;
-
-        const afterCol = col + dc * runLen;
-        const afterRow = row + dr * runLen;
-        const afterInBounds = afterCol >= 0 && afterCol < BOARD_SIZE && afterRow >= 0 && afterRow < BOARD_SIZE;
-
-        const beforeOpen = prevInBounds && board[prevRow][prevCol] === null;
-        const afterOpen = afterInBounds && board[afterRow][afterCol] === null;
-        if (beforeOpen && afterOpen) {
-          return { col: afterCol, row: afterRow };
-        }
-      }
+function opponentHasImmediateWinCell(board: Cell[][], opponent: PieceOwner): boolean {
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (board[r][c] === null && makesFiveInRow(board, opponent, c, r)) return true;
     }
   }
-  return null;
+  return false;
+}
+
+// "Blocking the five" per the client's spec means two distinct things: stopping an opponent run
+// of 4 with an open end (one move from winning — makesFiveInRow already detects exactly this
+// elsewhere), and stopping a developing threat before it gets there (an "open three": a run of
+// 3 with both ends empty, since left alone it becomes an unstoppable open four next turn).
+//
+// This used to scan for a literal contiguous run of exactly 3 — but that misses a "broken"
+// three just as dangerous, like X_XX (one gap inside an otherwise-connected run): filling that
+// gap makes a contiguous four with an open end, yet no cell here is ever part of a clean
+// 3-length run, so a shape-matching scanner never sees it as a threat at all. Simulating instead
+// catches both: for every empty cell, hypothetically let the opponent play there, then check
+// whether that alone would open an immediate winning cell for them somewhere else on the board —
+// clean or gapped, it doesn't matter, the danger is defined by what the move enables, not by its
+// shape.
+function findDevelopingThreatBlock(board: Cell[][], opponent: PieceOwner, botOwner: PieceOwner, legalMoves: Move[]): Move | null {
+  let fallback: Move | null = null;
+
+  for (const move of legalMoves) {
+    board[move.row][move.col] = opponent;
+    const dangerous = opponentHasImmediateWinCell(board, opponent);
+    board[move.row][move.col] = null;
+    if (!dangerous) continue;
+    if (!fallback) fallback = move;
+
+    // Two ways to defuse a given cell can differ a lot: some fully close the line (nothing left
+    // to threaten), others just push the danger out to the run's other open end (still real, but
+    // needs a follow-up block next turn). Prefer whichever candidate leaves the opponent with no
+    // immediate-win cell anywhere once the bot actually takes it, over one that only shifts it.
+    board[move.row][move.col] = botOwner;
+    const stillDangerous = opponentHasImmediateWinCell(board, opponent);
+    board[move.row][move.col] = null;
+    if (!stillDangerous) return move;
+  }
+
+  return fallback;
 }
 
 function findGroupsWithMembers(board: Cell[][], owner: PieceOwner): Move[][] {
@@ -635,11 +646,8 @@ function chooseEasyMove(sim: SimState, botOwner: PieceOwner, opponent: PieceOwne
     const fourBlock = allMoves.find((m) => makesFiveInRow(sim.board, opponent, m.col, m.row));
     if (fourBlock) return fourBlock;
 
-    const threeBlock = findOpenThreeBlockMove(sim.board, opponent);
-    if (threeBlock) {
-      const legal = allMoves.find((m) => m.col === threeBlock.col && m.row === threeBlock.row);
-      if (legal) return legal;
-    }
+    const threeBlock = findDevelopingThreatBlock(sim.board, opponent, botOwner, allMoves);
+    if (threeBlock) return threeBlock;
   }
 
   // First move of the game for this bot only — no analysis otherwise, pure random.
@@ -659,11 +667,8 @@ function chooseMediumMove(sim: SimState, botOwner: PieceOwner, opponent: PieceOw
     const fourBlock = allMoves.find((m) => makesFiveInRow(sim.board, opponent, m.col, m.row));
     if (fourBlock) return fourBlock;
 
-    const threeBlock = findOpenThreeBlockMove(sim.board, opponent);
-    if (threeBlock) {
-      const legal = allMoves.find((m) => m.col === threeBlock.col && m.row === threeBlock.row);
-      if (legal) return legal;
-    }
+    const threeBlock = findDevelopingThreatBlock(sim.board, opponent, botOwner, allMoves);
+    if (threeBlock) return threeBlock;
   }
 
   if (botMoveIndex % 2 === 0) {
