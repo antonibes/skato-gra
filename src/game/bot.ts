@@ -14,17 +14,21 @@ export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
 
 export const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard", "expert", "master"];
 
-const MAX_DEPTH: Record<Difficulty, number> = {
-  easy: 0,
-  medium: 5,
+// Easy and Medium are scripted (see chooseEasyMove/chooseMediumMove below), not search-driven —
+// the client wants their exact behavior easy to dial in independently, move-count phase by
+// move-count phase, without touching the minimax engine at all. Hard/Expert/Master keep using
+// that engine untouched, hence the narrower type: these config maps genuinely don't apply to
+// easy/medium any more, and this way TypeScript won't let a difficulty check drift out of sync
+// between chooseBotMove's branches and what these maps actually cover.
+type SearchDifficulty = "hard" | "expert" | "master";
+
+const MAX_DEPTH: Record<SearchDifficulty, number> = {
   hard: 8,
   expert: 10,
   master: 16,
 };
 
-const TIME_BUDGET_MS: Record<Difficulty, number> = {
-  easy: 0,
-  medium: 120,
+const TIME_BUDGET_MS: Record<SearchDifficulty, number> = {
   hard: 280,
   expert: 900,
   master: 1800,
@@ -32,9 +36,7 @@ const TIME_BUDGET_MS: Record<Difficulty, number> = {
 
 // Width of the move list considered at the root — kept generous so the bot's actual choice of
 // move is picked from a good pool of candidates.
-const CANDIDATE_CAP: Record<Difficulty, number> = {
-  easy: BOARD_SIZE * BOARD_SIZE,
-  medium: 12,
+const CANDIDATE_CAP: Record<SearchDifficulty, number> = {
   hard: 16,
   expert: 24,
   master: 32,
@@ -44,9 +46,7 @@ const CANDIDATE_CAP: Record<Difficulty, number> = {
 // and the strongest-looking moves first, so nodes deep in the tree don't need the same breadth
 // as the root — narrowing them buys several extra plies of real search depth for the same node
 // budget, which matters far more for playing strength than evaluating a few more so-so replies.
-const INNER_CANDIDATE_CAP: Record<Difficulty, number> = {
-  easy: BOARD_SIZE * BOARD_SIZE,
-  medium: 8,
+const INNER_CANDIDATE_CAP: Record<SearchDifficulty, number> = {
   hard: 8,
   expert: 9,
   master: 10,
@@ -453,6 +453,229 @@ function minimax(
   return best;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Easy / Medium: scripted personalities, not search. Per the client's spec for the online-play
+// rework, these two tiers are defined as an explicit schedule over the BOT'S OWN move count
+// (1st move it makes, 2nd, 3rd, ...) so each phase can be dialed in independently by editing the
+// ranges below, without touching the minimax engine that still drives Hard/Expert/Master.
+// ---------------------------------------------------------------------------------------------
+
+function countOwnerPieces(board: Cell[][], owner: PieceOwner): number {
+  let count = 0;
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (board[r][c] === owner) count++;
+    }
+  }
+  return count;
+}
+
+// "Blocking the five" per the client's spec means two distinct things: stopping an opponent run
+// of 4 with an open end (one move from winning — makesFiveInRow already detects exactly this),
+// and stopping an open three (a run of 3 with BOTH ends empty, since left alone it becomes an
+// unstoppable open four). This scans for the latter: the first open three found, blocked at one
+// of its two open ends.
+function findOpenThreeBlockMove(board: Cell[][], opponent: PieceOwner): Move | null {
+  for (const [dc, dr] of AXES) {
+    for (let row = 0; row < BOARD_SIZE; row++) {
+      for (let col = 0; col < BOARD_SIZE; col++) {
+        if (board[row][col] !== opponent) continue;
+
+        const prevCol = col - dc;
+        const prevRow = row - dr;
+        const prevInBounds = prevCol >= 0 && prevCol < BOARD_SIZE && prevRow >= 0 && prevRow < BOARD_SIZE;
+        if (prevInBounds && board[prevRow][prevCol] === opponent) continue; // not the start of a run
+
+        const runLen = countDirection(board, opponent, col, row, dc, dr);
+        if (runLen !== 3) continue;
+
+        const afterCol = col + dc * runLen;
+        const afterRow = row + dr * runLen;
+        const afterInBounds = afterCol >= 0 && afterCol < BOARD_SIZE && afterRow >= 0 && afterRow < BOARD_SIZE;
+
+        const beforeOpen = prevInBounds && board[prevRow][prevCol] === null;
+        const afterOpen = afterInBounds && board[afterRow][afterCol] === null;
+        if (beforeOpen && afterOpen) {
+          return { col: afterCol, row: afterRow };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function findGroupsWithMembers(board: Cell[][], owner: PieceOwner): Move[][] {
+  const visited = new Uint8Array(BOARD_SIZE * BOARD_SIZE);
+  const groups: Move[][] = [];
+
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
+      if (board[row][col] !== owner) continue;
+      const startIdx = row * BOARD_SIZE + col;
+      if (visited[startIdx]) continue;
+
+      const cells: Move[] = [];
+      const stack = [startIdx];
+      visited[startIdx] = 1;
+
+      while (stack.length > 0) {
+        const idx = stack.pop()!;
+        const r = (idx / BOARD_SIZE) | 0;
+        const c = idx % BOARD_SIZE;
+        cells.push({ col: c, row: r });
+
+        for (const [dc, dr] of DIRECTIONS) {
+          const nc = c + dc;
+          const nr = r + dr;
+          if (nc >= 0 && nc < BOARD_SIZE && nr >= 0 && nr < BOARD_SIZE) {
+            const nIdx = nr * BOARD_SIZE + nc;
+            if (board[nr][nc] === owner && !visited[nIdx]) {
+              visited[nIdx] = 1;
+              stack.push(nIdx);
+            }
+          }
+        }
+      }
+      groups.push(cells);
+    }
+  }
+  return groups;
+}
+
+// Medium's "every second move, try to cut off a group of 3-4 opponent pieces": picks the
+// largest qualifying opponent group and plays a legal cell touching it, containing its growth
+// rather than reacting to a specific line threat.
+function findGroupCutoffMove(board: Cell[][], opponent: PieceOwner, legalMoves: Move[]): Move | null {
+  const groups = findGroupsWithMembers(board, opponent).filter((g) => g.length >= 3 && g.length <= 4);
+  if (groups.length === 0) return null;
+  groups.sort((a, b) => b.length - a.length);
+
+  const legalSet = new Set(legalMoves.map((m) => m.row * BOARD_SIZE + m.col));
+
+  for (const group of groups) {
+    const candidates: Move[] = [];
+    for (const cell of group) {
+      for (const [dc, dr] of DIRECTIONS) {
+        const nc = cell.col + dc;
+        const nr = cell.row + dr;
+        if (nc >= 0 && nc < BOARD_SIZE && nr >= 0 && nr < BOARD_SIZE) {
+          const idx = nr * BOARD_SIZE + nc;
+          if (board[nr][nc] === null && legalSet.has(idx)) {
+            candidates.push({ col: nc, row: nr });
+          }
+        }
+      }
+    }
+    if (candidates.length > 0) {
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+  }
+  return null;
+}
+
+// Medium's "prefers building up its own groups": no search, just a greedy pick of whichever
+// legal cell touches the most of the bot's own pieces (ties broken randomly).
+function pickBuildingMove(board: Cell[][], owner: PieceOwner, moves: Move[]): Move {
+  let bestScore = -1;
+  let best: Move[] = [];
+  for (const move of moves) {
+    let score = 0;
+    for (const [dc, dr] of DIRECTIONS) {
+      const nc = move.col + dc;
+      const nr = move.row + dr;
+      if (nc >= 0 && nc < BOARD_SIZE && nr >= 0 && nr < BOARD_SIZE && board[nr][nc] === owner) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = [move];
+    } else if (score === bestScore) {
+      best.push(move);
+    }
+  }
+  return best[Math.floor(Math.random() * best.length)];
+}
+
+function restrictToInnerArea(moves: Move[], margin: number): Move[] {
+  const lo = margin;
+  const hi = BOARD_SIZE - 1 - margin;
+  return moves.filter((m) => m.col >= lo && m.col <= hi && m.row >= lo && m.row <= hi);
+}
+
+// Move-count phase schedule, straight from the client's spec: which of the bot's own moves
+// (1st, 2nd, 3rd, ...) actually engage the blocking logic below. Everything outside these
+// ranges plays on regardless of any threat on the board — intentional, not a bug: new players
+// mostly focus on landing their own five, and this is what lets that land often enough to feel
+// rewarding at the easiest tier.
+function easyShouldBlock(botMoveIndex: number): boolean {
+  if (botMoveIndex <= 8) return true;
+  if (botMoveIndex <= 11) return false;
+  if (botMoveIndex <= 18) return true;
+  if (botMoveIndex <= 23) return false;
+  if (botMoveIndex <= 28) return true;
+  return false;
+}
+
+function mediumShouldBlock(botMoveIndex: number): boolean {
+  if (botMoveIndex <= 10) return true;
+  if (botMoveIndex === 11) return false;
+  if (botMoveIndex <= 18) return true;
+  if (botMoveIndex <= 20) return false;
+  if (botMoveIndex <= 30) return true;
+  return false;
+}
+
+function chooseEasyMove(sim: SimState, botOwner: PieceOwner, opponent: PieceOwner, allMoves: Move[]): Move {
+  const winningMove = allMoves.find((m) => makesFiveInRow(sim.board, botOwner, m.col, m.row));
+  if (winningMove) return winningMove;
+
+  const botPieceCount = countOwnerPieces(sim.board, botOwner);
+  const botMoveIndex = botPieceCount + 1;
+
+  if (easyShouldBlock(botMoveIndex)) {
+    const fourBlock = allMoves.find((m) => makesFiveInRow(sim.board, opponent, m.col, m.row));
+    if (fourBlock) return fourBlock;
+
+    const threeBlock = findOpenThreeBlockMove(sim.board, opponent);
+    if (threeBlock) {
+      const legal = allMoves.find((m) => m.col === threeBlock.col && m.row === threeBlock.row);
+      if (legal) return legal;
+    }
+  }
+
+  // First move of the game for this bot only — no analysis otherwise, pure random.
+  const pool = botPieceCount === 0 ? restrictToInnerArea(allMoves, 1) : allMoves;
+  const candidates = pool.length > 0 ? pool : allMoves;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function chooseMediumMove(sim: SimState, botOwner: PieceOwner, opponent: PieceOwner, allMoves: Move[]): Move {
+  const winningMove = allMoves.find((m) => makesFiveInRow(sim.board, botOwner, m.col, m.row));
+  if (winningMove) return winningMove;
+
+  const botPieceCount = countOwnerPieces(sim.board, botOwner);
+  const botMoveIndex = botPieceCount + 1;
+
+  if (mediumShouldBlock(botMoveIndex)) {
+    const fourBlock = allMoves.find((m) => makesFiveInRow(sim.board, opponent, m.col, m.row));
+    if (fourBlock) return fourBlock;
+
+    const threeBlock = findOpenThreeBlockMove(sim.board, opponent);
+    if (threeBlock) {
+      const legal = allMoves.find((m) => m.col === threeBlock.col && m.row === threeBlock.row);
+      if (legal) return legal;
+    }
+  }
+
+  if (botMoveIndex % 2 === 0) {
+    const cutoff = findGroupCutoffMove(sim.board, opponent, allMoves);
+    if (cutoff) return cutoff;
+  }
+
+  const pool = botPieceCount === 0 ? restrictToInnerArea(allMoves, 2) : allMoves;
+  const candidates = pool.length > 0 ? pool : allMoves;
+  return pickBuildingMove(sim.board, botOwner, candidates);
+}
+
 export function chooseBotMove(state: GameState, botOwner: PieceOwner, difficulty: Difficulty): Move {
   const sim = fromGameState(state);
   const opponent: PieceOwner = botOwner === "green" ? "blue" : "green";
@@ -462,14 +685,10 @@ export function chooseBotMove(state: GameState, botOwner: PieceOwner, difficulty
   }
 
   if (difficulty === "easy") {
-    // Fully random play never blocks an obvious win, which makes the bot feel broken rather
-    // than "easy" — even a beginner notices and blocks an immediate 5-in-a-row. Give Easy just
-    // those two obvious instincts (take a free win, block a free loss); everything else is random.
-    const winningMove = allMoves.find((m) => makesFiveInRow(sim.board, botOwner, m.col, m.row));
-    if (winningMove) return winningMove;
-    const blockingMove = allMoves.find((m) => makesFiveInRow(sim.board, opponent, m.col, m.row));
-    if (blockingMove) return blockingMove;
-    return allMoves[Math.floor(Math.random() * allMoves.length)];
+    return chooseEasyMove(sim, botOwner, opponent, allMoves);
+  }
+  if (difficulty === "medium") {
+    return chooseMediumMove(sim, botOwner, opponent, allMoves);
   }
 
   const cap = CANDIDATE_CAP[difficulty];
